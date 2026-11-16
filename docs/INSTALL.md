@@ -36,11 +36,12 @@ cd /opt/kamfany-mail/backend
 cargo build --release
 cargo run --release -- migrate
 cd ../frontend
+cp .env.example .env
 npm install
 npm run build
 ```
 
-Leave `VITE_API_BASE_URL` empty in `frontend/.env`. The browser calls `/api` on the same site, and Nginx forwards that to the API. Resend credentials stay in `/etc/kamfany-mail.env` only.
+`frontend/.env.example` leaves `VITE_API_BASE_URL` empty. The browser calls `/api` on the same site, and Nginx forwards that to the API. Resend credentials stay in `/etc/kamfany-mail.env` only.
 
 Copy the built desk into the site directory aaPanel created:
 
@@ -53,7 +54,13 @@ Change the path if aaPanel used a different site directory.
 
 ## 4. Environment
 
-Create `/etc/kamfany-mail.env` from `backend/.env.example`:
+Copy the API example, then edit the copy:
+
+```bash
+cp /opt/kamfany-mail/backend/.env.example /etc/kamfany-mail.env
+```
+
+Set these values in `/etc/kamfany-mail.env`:
 
 ```text
 APP_ENV=production

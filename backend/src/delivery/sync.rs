@@ -128,12 +128,12 @@ async fn queue_counts(state: &AppState) -> Result<QueueCounts, AppError> {
     let row = sqlx::query_as::<_, QueueCounts>(
         r#"
         SELECT
-            count(*) FILTER (WHERE status = 'received') AS received,
+            count(*) FILTER (WHERE status = 'pending') AS received,
             count(*) FILTER (WHERE status = 'processing') AS processing,
             count(*) FILTER (WHERE status = 'failed') AS failed,
             EXTRACT(
                 EPOCH FROM (
-                    now() - min(created_at) FILTER (WHERE status IN ('received', 'processing'))
+                    now() - min(created_at) FILTER (WHERE status IN ('pending', 'processing'))
                 )
             )::bigint AS oldest_unprocessed_seconds
         FROM webhook_events
