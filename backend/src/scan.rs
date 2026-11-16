@@ -93,7 +93,8 @@ async fn classify(address: Option<&str>, bytes: &[u8]) -> Verdict {
                 .nth(1)
                 .unwrap_or("malware")
                 .replace("FOUND", "");
-            let name = name.trim_matches(|character: char| character.is_whitespace() || character == '\0');
+            let name =
+                name.trim_matches(|character: char| character.is_whitespace() || character == '\0');
             tracing::warn!(signature = %name, "attachment rejected by the scanner");
             Verdict::Rejected
         }
@@ -119,7 +120,9 @@ async fn read_instream(address: &str, bytes: &[u8]) -> Result<String, std::io::E
     let mut stream = TcpStream::connect(address).await?;
     stream.write_all(b"zINSTREAM\0").await?;
     for chunk in bytes.chunks(8192) {
-        stream.write_all(&(chunk.len() as u32).to_be_bytes()).await?;
+        stream
+            .write_all(&(chunk.len() as u32).to_be_bytes())
+            .await?;
         stream.write_all(chunk).await?;
     }
     stream.write_all(&0u32.to_be_bytes()).await?;
@@ -167,13 +170,19 @@ mod tests {
     #[tokio::test]
     async fn a_clean_reply_marks_the_file_clean() {
         let address = serve(b"stream: OK\0").await;
-        assert_eq!(super::status_for(Some(&address), b"hello desk").await, "clean");
+        assert_eq!(
+            super::status_for(Some(&address), b"hello desk").await,
+            "clean"
+        );
     }
 
     #[tokio::test]
     async fn a_found_reply_rejects_the_file() {
         let address = serve(b"stream: Eicar-Test-Signature FOUND\0").await;
-        assert_eq!(super::status_for(Some(&address), b"EICAR").await, "rejected");
+        assert_eq!(
+            super::status_for(Some(&address), b"EICAR").await,
+            "rejected"
+        );
     }
 
     #[tokio::test]

@@ -2,6 +2,7 @@ use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
@@ -24,6 +25,7 @@ pub struct Person {
     pub email: String,
     pub display_name: String,
     pub roles: Vec<String>,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Deserialize)]
@@ -39,6 +41,13 @@ struct PersonRow {
     id: Uuid,
     email: String,
     display_name: String,
+    created_at: DateTime<Utc>,
+}
+
+#[derive(FromRow)]
+struct CreatedRow {
+    id: Uuid,
+    created_at: DateTime<Utc>,
 }
 
 pub async fn list_users(
@@ -52,7 +61,7 @@ pub async fn list_users(
     }
     let pool = pool_of(&state)?;
     let rows = sqlx::query_as::<_, PersonRow>(
-        "SELECT id, email::text AS email, display_name FROM users ORDER BY email",
+        "SELECT id, email::text AS email, display_name, created_at FROM users ORDER BY email",
     )
     .fetch_all(pool)
     .await?;
@@ -63,6 +72,7 @@ pub async fn list_users(
             id: row.id,
             email: row.email,
             display_name: row.display_name,
+            created_at: row.created_at,
         });
     }
     Ok(Json(ApiData { data: people }))
@@ -93,11 +103,11 @@ pub async fn create_user(
     };
     let password_hash = hash_password(&body.password)?;
     let mut tx = pool.begin().await?;
-    let id = match sqlx::query_scalar::<_, Uuid>(
+    let created = match sqlx::query_as::<_, CreatedRow>(
         r#"
         INSERT INTO users (email, password_hash, display_name)
         VALUES ($1, $2, $3)
-        RETURNING id
+        RETURNING id, created_at
         "#,
     )
     .bind(&email)
@@ -106,7 +116,7 @@ pub async fn create_user(
     .fetch_one(&mut *tx)
     .await
     {
-        Ok(id) => id,
+        Ok(created) => created,
         Err(error) => {
             return Err(crate::auth::unique_or(
                 error,
@@ -114,6 +124,7 @@ pub async fn create_user(
             ));
         }
     };
+    let id = created.id;
     sqlx::query("INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)")
         .bind(id)
         .bind(role_id)
@@ -138,6 +149,7 @@ pub async fn create_user(
         email,
         display_name: name,
         roles: load_roles(pool, id).await?,
+        created_at: created.created_at,
     };
     Ok((StatusCode::CREATED, Json(ApiData { data: person })).into_response())
 }

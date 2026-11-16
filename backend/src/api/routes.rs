@@ -1,12 +1,18 @@
 use std::time::Duration;
 
 use axum::Router;
-use axum::http::StatusCode;
 use axum::extract::DefaultBodyLimit;
+use axum::http::StatusCode;
 use axum::routing::{delete, get, patch, post};
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 
+use crate::api::audit::list_audit;
+use crate::api::auth::{
+    change_password, forgot_password, login, logout, me, refresh, reset_password, revoke_session,
+    sessions, update_me,
+};
+use crate::api::browser::require_browser;
 use crate::api::compose::{
     add_draft, add_file, add_signature, discard_draft, discard_file, discard_signature,
     mailbox_signatures, open_draft, open_file, recipient_suggestions, save_draft, save_signature,
@@ -15,27 +21,21 @@ use crate::api::contacts::{
     add_avatar, add_contact, avatar, contacts, discard_avatar, discard_contact, import,
     save_contact,
 };
-use crate::api::live::{notices, read_notice, read_notices, socket};
-use crate::api::search::search;
-use crate::api::audit::list_audit;
-use crate::api::auth::{
-    change_password, forgot_password, login, logout, me, refresh, reset_password, revoke_session,
-    sessions, update_me,
-};
-use crate::api::browser::require_browser;
 use crate::api::errors::AppError;
 use crate::api::health::{health, ready};
+use crate::api::live::{notices, read_notice, read_notices, socket};
+use crate::api::mailboxes::{
+    create_mailbox, delete_mailbox, get_mailbox, grant_member, list_mailboxes, list_members,
+    make_default, revoke_member, update_mailbox,
+};
 use crate::api::messages::{
     add_folder, add_label_def, archive_message, bulk_messages, folders, forward, label_message,
     labels, list_mailbox_messages, move_message, patch_folder, patch_label, read_message,
     remove_folder, remove_label_def, remove_message, reply, set_read, set_star, unlabel_message,
 };
-use crate::api::mailboxes::{
-    create_mailbox, delete_mailbox, get_mailbox, grant_member, list_mailboxes, list_members,
-    make_default, revoke_member, update_mailbox,
-};
 use crate::api::middleware::{cors_layer, security_headers};
 use crate::api::provider::{provider_status, provider_sync, resend_webhook, send_message};
+use crate::api::search::search;
 use crate::api::users::{create_user, list_users};
 use crate::config::ConfigError;
 use crate::state::AppState;
@@ -98,11 +98,11 @@ fn browser_router() -> Router<AppState> {
         .route("/api/v1/mailboxes/{id}/default", post(make_default))
         .route("/api/v1/mailboxes/{id}/send", post(send_message))
         .route("/api/v1/mailboxes/{id}/drafts", post(add_draft))
+        .route("/api/v1/mailboxes/{id}/signatures", get(mailbox_signatures))
         .route(
-            "/api/v1/mailboxes/{id}/signatures",
-            get(mailbox_signatures),
+            "/api/v1/mailboxes/{id}/recipients",
+            get(recipient_suggestions),
         )
-        .route("/api/v1/mailboxes/{id}/recipients", get(recipient_suggestions))
         .route("/api/v1/signatures", post(add_signature))
         .route(
             "/api/v1/signatures/{id}",
@@ -133,8 +133,14 @@ fn browser_router() -> Router<AppState> {
             "/api/v1/mailboxes/{id}/labels",
             get(labels).post(add_label_def),
         )
-        .route("/api/v1/folders/{id}", patch(patch_folder).delete(remove_folder))
-        .route("/api/v1/labels/{id}", patch(patch_label).delete(remove_label_def))
+        .route(
+            "/api/v1/folders/{id}",
+            patch(patch_folder).delete(remove_folder),
+        )
+        .route(
+            "/api/v1/labels/{id}",
+            patch(patch_label).delete(remove_label_def),
+        )
         .route(
             "/api/v1/messages/{id}",
             get(read_message).delete(remove_message),

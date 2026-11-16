@@ -31,7 +31,7 @@ const chips = computed(() =>
 
 <template>
   <div
-    class="grid cursor-pointer grid-cols-[1.25rem_1.25rem_minmax(0,1fr)] items-start gap-x-2.5 border-b border-line px-3 py-2.5 text-left hover:bg-canvas"
+    class="grid cursor-pointer grid-cols-[1.25rem_1.25rem_minmax(0,1fr)] items-start gap-x-2.5 border-b border-line px-4 py-3.5 text-left hover:bg-canvas"
     :class="open ? 'bg-canvas' : ''"
     role="option"
     :aria-selected="open"

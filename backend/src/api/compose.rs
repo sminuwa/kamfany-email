@@ -143,8 +143,7 @@ pub async fn open_file(
     );
     headers.insert(
         header::CONTENT_DISPOSITION,
-        HeaderValue::from_str(&disposition)
-            .unwrap_or(HeaderValue::from_static("attachment")),
+        HeaderValue::from_str(&disposition).unwrap_or(HeaderValue::from_static("attachment")),
     );
     headers.insert(
         header::CACHE_CONTROL,

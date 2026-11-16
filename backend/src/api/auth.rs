@@ -17,9 +17,14 @@ use crate::auth::{
     normalize_email, password_policy, pool_of, session_cookie, session_expiry, verify_password,
     write_audit,
 };
+use crate::providers::{EmailProvider, OutboundEmail};
 use crate::state::AppState;
 
 const LOCK_AFTER: i32 = 5;
+const RESET_MINUTES: i64 = 30;
+const RESET_LATER: &str =
+    "If that account exists, a reset will be sent when mail delivery is connected.";
+const RESET_SENT: &str = "If that account can receive mail, a reset link is on its way.";
 
 #[derive(Deserialize)]
 pub struct LoginBody {
@@ -36,6 +41,17 @@ pub struct PasswordBody {
 #[derive(Deserialize)]
 pub struct NameBody {
     display_name: String,
+}
+
+#[derive(Deserialize)]
+pub struct ForgotBody {
+    email: String,
+}
+
+#[derive(Deserialize)]
+pub struct ResetBody {
+    token: String,
+    password: String,
 }
 
 #[derive(Serialize, FromRow)]
@@ -348,6 +364,7 @@ pub async fn revoke_session(
 pub async fn forgot_password(
     State(state): State<AppState>,
     headers: HeaderMap,
+    Body(body): Body<ForgotBody>,
 ) -> Result<Json<ApiData<Notice>>, AppError> {
     if let Ok(pool) = pool_of(&state) {
         crate::limit::charge(
@@ -358,17 +375,175 @@ pub async fn forgot_password(
         )
         .await?;
     }
-    Ok(Json(ApiData {
-        data: Notice {
-            message: "If that account exists, a reset will be sent when mail delivery is connected.",
-        },
-    }))
+    let email = normalize_email(&body.email)?;
+    let (Some(pool), Some(provider), Some(origin)) = (
+        pool_of(&state).ok(),
+        state.provider.as_ref(),
+        public_origin(&state.config.cors_origins),
+    ) else {
+        return Ok(notice(RESET_LATER));
+    };
+    let user_id =
+        sqlx::query_scalar::<_, Uuid>("SELECT id FROM users WHERE email = $1 AND is_active")
+            .bind(&email)
+            .fetch_optional(pool)
+            .await?;
+    if let Some(user_id) = user_id {
+        let token = new_token();
+        let token_hash = hash_token(&token);
+        let mut tx = pool.begin().await?;
+        sqlx::query(
+            r#"
+            UPDATE password_resets
+            SET used_at = now()
+            WHERE user_id = $1 AND used_at IS NULL
+            "#,
+        )
+        .bind(user_id)
+        .execute(&mut *tx)
+        .await?;
+        let reset_id = sqlx::query_scalar::<_, Uuid>(
+            r#"
+            INSERT INTO password_resets (user_id, token_hash, expires_at)
+            VALUES ($1, $2, now() + ($3::int * interval '1 minute'))
+            RETURNING id
+            "#,
+        )
+        .bind(user_id)
+        .bind(&token_hash)
+        .bind(i32::try_from(RESET_MINUTES).unwrap_or(30))
+        .fetch_one(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        let link = format!("{origin}/reset-password?token={token}");
+        if let Err(error) = provider
+            .send_email(&reset_mail(
+                &state.config.resend.sending_domain,
+                &email,
+                &link,
+                reset_id,
+            ))
+            .await
+        {
+            tracing::warn!(%error, "password reset mail was not accepted");
+            sqlx::query("UPDATE password_resets SET used_at = now() WHERE id = $1")
+                .bind(reset_id)
+                .execute(pool)
+                .await?;
+        }
+    }
+    Ok(notice(RESET_SENT))
 }
 
-pub async fn reset_password() -> Result<(), AppError> {
-    Err(AppError::Validation(
-        "Password reset is not available until mail delivery is connected.".into(),
-    ))
+pub async fn reset_password(
+    State(state): State<AppState>,
+    Body(body): Body<ResetBody>,
+) -> Result<Json<ApiData<Notice>>, AppError> {
+    let pool = pool_of(&state)?;
+    password_policy(&body.password)?;
+    let token = body.token.trim().to_ascii_lowercase();
+    if token.len() != 64 || !token.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(AppError::Validation("This reset link is not valid.".into()));
+    }
+    let row = sqlx::query_as::<_, ResetRow>(
+        r#"
+        SELECT id, user_id
+        FROM password_resets
+        WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()
+        "#,
+    )
+    .bind(hash_token(&token))
+    .fetch_optional(pool)
+    .await?;
+    let Some(row) = row else {
+        return Err(AppError::Validation("This reset link is not valid.".into()));
+    };
+    let next = hash_password(&body.password)?;
+    let mut tx = pool.begin().await?;
+    let used = sqlx::query(
+        r#"
+        UPDATE password_resets
+        SET used_at = now()
+        WHERE id = $1 AND used_at IS NULL AND expires_at > now()
+        "#,
+    )
+    .bind(row.id)
+    .execute(&mut *tx)
+    .await?;
+    if used.rows_affected() != 1 {
+        return Err(AppError::Validation("This reset link is not valid.".into()));
+    }
+    sqlx::query(
+        r#"
+        UPDATE users
+        SET password_hash = $2, failed_login_count = 0, locked_until = NULL
+        WHERE id = $1
+        "#,
+    )
+    .bind(row.user_id)
+    .bind(&next)
+    .execute(&mut *tx)
+    .await?;
+    sqlx::query(
+        r#"
+        UPDATE sessions
+        SET revoked_at = now()
+        WHERE user_id = $1 AND revoked_at IS NULL
+        "#,
+    )
+    .bind(row.user_id)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    write_audit(
+        pool,
+        Some(row.user_id),
+        "auth.password_reset",
+        Some("user"),
+        Some(row.user_id),
+        serde_json::json!({}),
+    )
+    .await?;
+    Ok(notice("Password updated. Sign in with the new password."))
+}
+
+fn notice(message: &'static str) -> Json<ApiData<Notice>> {
+    Json(ApiData {
+        data: Notice { message },
+    })
+}
+
+fn public_origin(origins: &[String]) -> Option<&str> {
+    origins
+        .iter()
+        .find(|origin| origin.starts_with("https://"))
+        .or_else(|| origins.first())
+        .map(String::as_str)
+}
+
+fn reset_mail(domain: &str, email: &str, link: &str, reset_id: Uuid) -> OutboundEmail {
+    let text = format!(
+        "A password reset was requested for {email}.\n\nOpen this link within {RESET_MINUTES} minutes:\n{link}\n\nIf you did not ask for this, ignore the message. The password stays the same.\n"
+    );
+    OutboundEmail {
+        from_name: "KAMFANY Mail".to_string(),
+        from_address: format!("noreply@{domain}"),
+        to: vec![email.to_string()],
+        cc: Vec::new(),
+        bcc: Vec::new(),
+        subject: "Reset your KAMFANY Mail password".to_string(),
+        text: Some(text),
+        html: None,
+        idempotency_key: reset_id.to_string(),
+        headers: Vec::new(),
+        attachments: Vec::new(),
+    }
+}
+
+#[derive(FromRow)]
+struct ResetRow {
+    id: Uuid,
+    user_id: Uuid,
 }
 
 async fn record_failure(pool: &sqlx::PgPool, user_id: Uuid, current: i32) -> Result<(), AppError> {

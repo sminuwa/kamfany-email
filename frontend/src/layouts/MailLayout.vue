@@ -96,9 +96,9 @@ onKeyStroke("k", (event) => {
       @click="ui.closeMobile()"
     />
     <AppSidebar />
-    <div class="mail-column flex h-full min-h-0 min-w-0 flex-col">
+    <div class="mail-column flex h-full min-h-0 min-w-0 flex-col bg-canvas">
       <AppTopbar />
-      <main id="mail-desk" class="min-h-0 flex-1">
+      <main id="mail-desk" class="min-h-0 flex-1 px-3 pb-3">
         <RouterView />
       </main>
     </div>

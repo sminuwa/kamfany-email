@@ -42,6 +42,32 @@
   --km-status-degraded: #8a5a12;
   --km-status-offline: #8e1d18;
   --km-shadow: 0 1px 2px rgba(16, 33, 31, 0.06), 0 10px 28px rgba(16, 33, 31, 0.08);
+  --km-account-wash:
+    radial-gradient(560px 200px at 76% 0%, rgba(216, 238, 226, 0.75), transparent 72%),
+    linear-gradient(180deg, #f7fbf9 0%, #f8faf9 42%, #f6f7f7 100%);
+  --km-art-ribbon: #dcefe6;
+  --km-art-ribbon-soft: #f3faf6;
+  --km-art-square: #d5f1e3;
+  --km-art-square-deep: #bfe4d0;
+  --km-art-letter: #ffffff;
+  --km-art-letter-edge: #e4f3eb;
+  --km-art-letter-line: #c5d8ce;
+  --km-art-letter-shadow: rgba(126, 176, 152, 0.22);
+  --km-art-flap: #eef8f3;
+  --km-art-body: #d4f0e3;
+  --km-art-body-edge: #c3e7d4;
+  --km-art-pocket: #8dceb0;
+  --km-nav-current: #146b38;
+  --km-nav-current-bg: linear-gradient(90deg, #e5f8ee 0%, #c8f0d8 100%);
+  --km-mail-mint: #178a3e;
+  --km-mail-mint-bg: linear-gradient(180deg, #f3fbf6 0%, #d9f3e4 100%);
+  --km-mail-rose: #d64545;
+  --km-mail-rose-bg: linear-gradient(180deg, #fff5f5 0%, #f8d4d4 100%);
+  --km-mail-sand: #c4841d;
+  --km-mail-sand-bg: linear-gradient(180deg, #fffaf2 0%, #ffe4bc 100%);
+  --km-mail-off: #5c6b68;
+  --km-mail-off-bg: linear-gradient(180deg, #ffffff 0%, #f3f6f5 100%);
+  --km-mail-off-line: #d7e0de;
 }
 
 [data-theme="dark"] {
@@ -63,4 +89,30 @@
   --km-status-degraded: #f2c14e;
   --km-status-offline: #f0a8a2;
   --km-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.32);
+  --km-account-wash:
+    radial-gradient(560px 220px at 76% 0%, rgba(38, 96, 74, 0.55), transparent 70%),
+    linear-gradient(180deg, #101a17 0%, #0c1413 48%, #0c1413 100%);
+  --km-art-ribbon: #1c4636;
+  --km-art-ribbon-soft: #142e24;
+  --km-art-square: #245843;
+  --km-art-square-deep: #1a4032;
+  --km-art-letter: #e7f6ee;
+  --km-art-letter-edge: #8fbfa6;
+  --km-art-letter-line: #6d9b86;
+  --km-art-letter-shadow: rgba(0, 0, 0, 0.35);
+  --km-art-flap: #1b3d30;
+  --km-art-body: #1e4d3b;
+  --km-art-body-edge: #2f6a52;
+  --km-art-pocket: #143226;
+  --km-nav-current: #d7f6e4;
+  --km-nav-current-bg: linear-gradient(90deg, rgba(46, 140, 96, 0.45) 0%, rgba(22, 92, 64, 0.28) 100%);
+  --km-mail-mint: #b7ebc9;
+  --km-mail-mint-bg: linear-gradient(180deg, rgba(46, 140, 96, 0.35) 0%, rgba(23, 90, 62, 0.45) 100%);
+  --km-mail-rose: #f0a8a2;
+  --km-mail-rose-bg: linear-gradient(180deg, rgba(160, 54, 48, 0.35) 0%, rgba(110, 32, 28, 0.45) 100%);
+  --km-mail-sand: #f2c14e;
+  --km-mail-sand-bg: linear-gradient(180deg, rgba(160, 110, 32, 0.35) 0%, rgba(110, 72, 16, 0.45) 100%);
+  --km-mail-off: #c5d5d1;
+  --km-mail-off-bg: linear-gradient(180deg, #1c2826 0%, #16211f 100%);
+  --km-mail-off-line: #2c3c39;
 }

@@ -59,9 +59,9 @@ watch(
 </script>
 
 <template>
-  <div class="desk-grid grid h-full min-h-0 grid-cols-1 min-[960px]:grid-cols-[minmax(280px,0.92fr)_minmax(0,1.15fr)]">
-    <MessageList v-show="showList" class="min-[960px]:border-r" @open="openMessage" />
-    <section v-show="showReader" class="flex h-full min-h-0 flex-col bg-canvas" aria-label="Reading pane">
+  <div class="desk-grid grid h-full min-h-0 grid-cols-1 gap-3 min-[960px]:grid-cols-[minmax(280px,0.92fr)_minmax(0,1.15fr)]">
+    <MessageList v-show="showList" class="rounded-panel shadow-panel" @open="openMessage" />
+    <section v-show="showReader" class="flex h-full min-h-0 flex-col rounded-panel bg-surface shadow-panel" aria-label="Reading pane">
       <ComposerSheet v-if="ui.composerOpen" />
       <ReadingPane v-else-if="selected" :message="selected" @close="closeMessage" />
       <div v-else-if="selectedId" class="grid h-full place-items-center px-8 text-center">
@@ -69,8 +69,8 @@ watch(
       </div>
       <div v-else class="desk-chrome grid h-full min-h-0 flex-1 place-items-center px-8 text-center">
         <div class="max-w-[36ch]">
-          <BrandMark class="mx-auto size-12" />
-          <p class="mt-4 text-base font-semibold">No message open</p>
+          <BrandMark class="mx-auto size-14" />
+          <p class="mt-5 text-lg font-semibold tracking-[-0.03em]">No message open</p>
           <p class="mt-2 text-sm leading-relaxed text-muted">
             Choose a message from the list to read it here.
           </p>

@@ -139,7 +139,7 @@ function openThread(id: string) {
     </header>
 
     <div class="desk-chrome shrink-0 border-b border-line px-5 py-4">
-      <h2 class="text-xl font-semibold tracking-[-0.02em]">{{ message.subject }}</h2>
+      <h2 class="text-2xl font-semibold tracking-[-0.03em]">{{ message.subject }}</h2>
       <p v-if="deliveryLabel(message.status)" class="mt-1 text-xs font-semibold uppercase tracking-[0.04em] text-muted">
         {{ deliveryLabel(message.status) }}
       </p>

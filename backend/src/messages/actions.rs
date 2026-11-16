@@ -86,13 +86,11 @@ pub async fn move_messages(
     .bind(folder_id)
     .execute(&mut *tx)
     .await?;
-    sqlx::query(
-        "UPDATE messages SET snoozed_until = NULL WHERE mailbox_id = $1 AND id = ANY($2)",
-    )
-    .bind(mailbox_id)
-    .bind(&ids)
-    .execute(&mut *tx)
-    .await?;
+    sqlx::query("UPDATE messages SET snoozed_until = NULL WHERE mailbox_id = $1 AND id = ANY($2)")
+        .bind(mailbox_id)
+        .bind(&ids)
+        .execute(&mut *tx)
+        .await?;
     tx.commit().await?;
     tracing::info!(%mailbox_id, count = ids.len(), "messages moved");
     Ok(())
@@ -200,13 +198,11 @@ pub async fn remove_label(
     let ids = clean_ids(ids)?;
     require_reader(pool, mailbox_id, user).await?;
     confirm_messages(pool, mailbox_id, &ids).await?;
-    sqlx::query(
-        "DELETE FROM message_labels WHERE label_id = $1 AND message_id = ANY($2)",
-    )
-    .bind(label_id)
-    .bind(&ids)
-    .execute(pool)
-    .await?;
+    sqlx::query("DELETE FROM message_labels WHERE label_id = $1 AND message_id = ANY($2)")
+        .bind(label_id)
+        .bind(&ids)
+        .execute(pool)
+        .await?;
     Ok(())
 }
 
@@ -243,9 +239,7 @@ pub async fn bulk(
                 (Some(folder_id), None) => Destination::Folder(folder_id),
                 (None, Some(key)) => Destination::System(key),
                 _ => {
-                    return Err(AppError::Validation(
-                        "Choose a folder to move to.".into(),
-                    ));
+                    return Err(AppError::Validation("Choose a folder to move to.".into()));
                 }
             };
             move_messages(pool, user, mailbox_id, change.ids, destination).await

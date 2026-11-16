@@ -216,7 +216,9 @@ pub async fn upload_file(
         if field.name() != Some("file") {
             continue;
         }
-        filename = Some(outbound_filename(field.file_name().unwrap_or("attachment"))?);
+        filename = Some(outbound_filename(
+            field.file_name().unwrap_or("attachment"),
+        )?);
         mime = content_type(field.content_type().unwrap_or("application/octet-stream"));
         let data = field
             .bytes()
@@ -343,12 +345,11 @@ pub async fn download(
                 other => other,
             })?;
     } else if let Some(draft_id) = row.draft_id {
-        let author = sqlx::query_scalar::<_, Uuid>(
-            "SELECT author_user_id FROM drafts WHERE id = $1",
-        )
-        .bind(draft_id)
-        .fetch_optional(pool)
-        .await?;
+        let author =
+            sqlx::query_scalar::<_, Uuid>("SELECT author_user_id FROM drafts WHERE id = $1")
+                .bind(draft_id)
+                .fetch_optional(pool)
+                .await?;
         if author != Some(user.id) {
             return Err(AppError::NotFound);
         }
@@ -476,12 +477,11 @@ pub async fn delete_signature(
     signature_id: Uuid,
 ) -> Result<(), AppError> {
     let pool = pool_of(state)?;
-    let removed =
-        sqlx::query("DELETE FROM email_signatures WHERE id = $1 AND user_id = $2")
-            .bind(signature_id)
-            .bind(user.id)
-            .execute(pool)
-            .await?;
+    let removed = sqlx::query("DELETE FROM email_signatures WHERE id = $1 AND user_id = $2")
+        .bind(signature_id)
+        .bind(user.id)
+        .execute(pool)
+        .await?;
     if removed.rows_affected() == 0 {
         Err(AppError::NotFound)
     } else {
@@ -501,7 +501,13 @@ pub async fn suggest(
     if query.is_empty() || query.chars().count() > 80 || query.chars().any(char::is_control) {
         return Ok(Vec::new());
     }
-    let pattern = format!("%{}%", query.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_"));
+    let pattern = format!(
+        "%{}%",
+        query
+            .replace('\\', "\\\\")
+            .replace('%', "\\%")
+            .replace('_', "\\_")
+    );
     let rows = sqlx::query_as::<_, Suggestion>(
         r#"
         SELECT address::text AS address, max(name) AS name
@@ -551,7 +557,11 @@ struct SavedDraft {
 fn clean_draft(input: DraftInput) -> Result<SavedDraft, AppError> {
     let kind = match input.kind.as_str() {
         "new" | "reply" | "reply-all" | "forward" => input.kind,
-        _ => return Err(AppError::Validation("That compose kind is not known.".into())),
+        _ => {
+            return Err(AppError::Validation(
+                "That compose kind is not known.".into(),
+            ));
+        }
     };
     let subject = input.subject.trim().to_string();
     if subject.chars().count() > 998 || subject.chars().any(char::is_control) {

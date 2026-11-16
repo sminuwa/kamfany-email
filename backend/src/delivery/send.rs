@@ -109,7 +109,8 @@ pub async fn send_mail(
     crate::limit::charge(pool, &format!("send:{actor}"), 3600, 30).await?;
     let files = match request.draft_id {
         Some(draft_id) => {
-            super::files::read_draft_files(pool, &state.storage, draft_id, actor, mailbox.id).await?
+            super::files::read_draft_files(pool, &state.storage, draft_id, actor, mailbox.id)
+                .await?
         }
         None => Vec::new(),
     };

@@ -33,9 +33,7 @@ pub async fn require_reader(
         return Err(AppError::NotFound);
     }
     if row.can_read != Some(true) {
-        return Err(AppError::Forbidden(
-            "You cannot read this mailbox.".into(),
-        ));
+        return Err(AppError::Forbidden("You cannot read this mailbox.".into()));
     }
     Ok(MailGrant {
         mailbox_id,
@@ -59,9 +57,7 @@ pub fn clean_ids(ids: Vec<Uuid>) -> Result<Vec<Uuid>, AppError> {
         return Err(AppError::Validation("Choose a message.".into()));
     }
     if ids.len() > 50 {
-        return Err(AppError::Validation(
-            "Choose at most 50 messages.".into(),
-        ));
+        return Err(AppError::Validation("Choose at most 50 messages.".into()));
     }
     Ok(ids)
 }

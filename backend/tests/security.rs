@@ -100,7 +100,12 @@ async fn send(
         .get(header::X_CONTENT_TYPE_OPTIONS)
         .and_then(|value| value.to_str().ok())
         .map(str::to_string);
-    let bytes = response.into_body().collect().await.expect("body").to_bytes();
+    let bytes = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body")
+        .to_bytes();
     let json = serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null);
     (status, json, nosniff)
 }

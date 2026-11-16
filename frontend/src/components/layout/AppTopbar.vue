@@ -94,10 +94,10 @@ function navigationLabel() {
 </script>
 
 <template>
-  <header class="desk-chrome flex h-14 shrink-0 items-center gap-1.5 border-b border-line bg-surface px-2 min-[960px]:gap-2 min-[960px]:px-3">
+  <header class="desk-chrome flex h-16 shrink-0 items-center gap-1.5 px-3 min-[960px]:gap-2">
     <button
       type="button"
-      class="grid size-9 shrink-0 place-items-center rounded-control text-ink hover:bg-canvas min-[960px]:size-10"
+      class="grid size-9 shrink-0 place-items-center rounded-control text-ink hover:bg-surface min-[960px]:size-10"
       :aria-expanded="isDesktop ? !ui.collapsed : ui.mobileOpen"
       :aria-label="navigationLabel()"
       @click="toggleNavigation"
@@ -108,21 +108,21 @@ function navigationLabel() {
 
     <form class="relative min-w-0 flex-1" role="search" @submit.prevent>
       <label class="sr-only" for="mail-search">Search mail</label>
-      <Search class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
+      <Search class="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
       <input
         id="mail-search"
         v-model="ui.searchQuery"
         type="search"
         :placeholder="isDesktop ? 'Search mail' : 'Search'"
         autocomplete="off"
-        class="h-10 w-full rounded-control border border-line bg-canvas pl-10 pr-12 text-base text-ink sm:pr-12 sm:text-sm"
+        class="h-11 w-full rounded-full border border-line bg-surface pl-11 pr-12 text-base text-ink shadow-panel sm:text-sm"
       />
       <div class="absolute right-1 top-1">
       <MenuPanel v-model="ui.filtersOpen" label="Search filters">
         <template #trigger="{ toggle, open }">
           <button
             type="button"
-            class="relative grid size-8 place-items-center rounded-[8px] text-muted hover:bg-surface hover:text-ink"
+            class="relative grid size-8 place-items-center rounded-full text-muted hover:bg-canvas hover:text-ink"
             :aria-expanded="open"
             aria-haspopup="menu"
             aria-label="Search filters"
@@ -219,7 +219,7 @@ function navigationLabel() {
       />
       <button
         type="button"
-        class="grid size-9 place-items-center rounded-control text-ink hover:bg-canvas min-[960px]:size-10"
+        class="grid size-9 place-items-center rounded-control text-ink hover:bg-surface min-[960px]:size-10"
         :aria-busy="service.checking"
         aria-label="Refresh"
         @click="service.refresh()"
@@ -231,7 +231,7 @@ function navigationLabel() {
         <template #trigger="{ toggle, open }">
           <button
             type="button"
-            class="relative grid size-9 place-items-center rounded-control text-ink hover:bg-canvas min-[960px]:size-10"
+            class="relative grid size-9 place-items-center rounded-control text-ink hover:bg-surface min-[960px]:size-10"
             :aria-expanded="open"
             aria-haspopup="menu"
             aria-label="Notifications"
@@ -273,7 +273,7 @@ function navigationLabel() {
         <template #trigger="{ toggle, open }">
           <button
             type="button"
-            class="grid size-9 place-items-center rounded-control text-ink hover:bg-canvas min-[960px]:size-10"
+            class="grid size-9 place-items-center rounded-control text-ink hover:bg-surface min-[960px]:size-10"
             :aria-expanded="open"
             aria-haspopup="menu"
             aria-label="Help"
@@ -294,7 +294,7 @@ function navigationLabel() {
         <template #trigger="{ toggle, open }">
           <button
             type="button"
-            class="grid size-9 place-items-center rounded-control hover:bg-canvas min-[960px]:size-10"
+            class="grid size-9 place-items-center rounded-control hover:bg-surface min-[960px]:size-10"
             :aria-expanded="open"
             aria-haspopup="menu"
             aria-label="Account menu"

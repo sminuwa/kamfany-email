@@ -277,11 +277,12 @@ pub async fn update_label(
 ) -> Result<LabelItem, AppError> {
     let mailbox_id = label_mailbox(pool, label_id).await?;
     require_reader(pool, mailbox_id, user).await?;
-    let current = sqlx::query_as::<_, LabelItem>("SELECT id, name, color FROM labels WHERE id = $1")
-        .bind(label_id)
-        .fetch_optional(pool)
-        .await?
-        .ok_or(AppError::NotFound)?;
+    let current =
+        sqlx::query_as::<_, LabelItem>("SELECT id, name, color FROM labels WHERE id = $1")
+            .bind(label_id)
+            .fetch_optional(pool)
+            .await?
+            .ok_or(AppError::NotFound)?;
     if name.is_none() && color.is_none() {
         return Err(AppError::Validation("Nothing to change.".into()));
     }
@@ -338,9 +339,7 @@ pub(super) fn clean_color(value: Option<&str>) -> Result<Option<String>, AppErro
     match value.map(str::trim).filter(|item| !item.is_empty()) {
         None => Ok(None),
         Some(color @ ("brass" | "paper" | "mist")) => Ok(Some(color.to_string())),
-        Some(_) => Err(AppError::Validation(
-            "Choose brass, paper, or mist.".into(),
-        )),
+        Some(_) => Err(AppError::Validation("Choose brass, paper, or mist.".into())),
     }
 }
 

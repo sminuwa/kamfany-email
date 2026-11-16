@@ -17,6 +17,7 @@ import { RouterLink, useRoute, useRouter } from "vue-router";
 import type { Component } from "vue";
 import { computed, ref } from "vue";
 import { useRailCollapsed } from "../../composables/useRail";
+import { useAuthStore } from "../../stores/auth";
 import { useMailboxStore } from "../../stores/mailboxes";
 import { useMailStore } from "../../stores/messages";
 import { useUiStore } from "../../stores/ui";
@@ -27,6 +28,7 @@ import MenuPanel from "../common/MenuPanel.vue";
 
 const ui = useUiStore();
 const mail = useMailStore();
+const auth = useAuthStore();
 const boxes = useMailboxStore();
 const route = useRoute();
 const router = useRouter();
@@ -38,6 +40,8 @@ const folderName = ref("");
 const labelName = ref("");
 const tone = ref<LabelTone>("brass");
 const mailboxLabel = computed(() => boxes.active?.address || "No mailbox");
+const signedInName = computed(() => auth.user?.displayName || "Account");
+const signedInInitial = computed(() => auth.user?.displayName.slice(0, 1) || "K");
 const customFolders = computed(() => mail.folders.filter((folder) => !folder.systemKey));
 
 const railTone: Record<LabelTone, string> = {
@@ -178,9 +182,9 @@ const icons: Record<string, Component> = {
         <li v-for="folder in systemFolders" :key="folder.key">
           <RouterLink
             :to="folder.path"
-            class="flex h-9 items-center gap-3 rounded-control text-sm text-lagoon-ink hover:bg-lagoon-active"
+            class="flex h-10 items-center gap-3 rounded-full text-sm text-lagoon-ink hover:bg-lagoon-active"
             :class="[
-              route.path === folder.path ? 'bg-lagoon-active' : '',
+              route.path === folder.path ? 'bg-lagoon-active font-semibold' : '',
               railCollapsed ? 'justify-center px-0' : 'px-2.5',
             ]"
             :aria-current="route.path === folder.path ? 'page' : undefined"
@@ -283,12 +287,12 @@ const icons: Record<string, Component> = {
       </div>
     </nav>
 
-    <div class="px-3 pb-4">
+    <div class="border-t border-lagoon-line px-3 py-3">
       <RouterLink
         to="/contacts"
-        class="flex h-9 items-center gap-3 rounded-control text-sm text-lagoon-ink hover:bg-lagoon-active"
+        class="flex h-10 items-center gap-3 rounded-full text-sm text-lagoon-ink hover:bg-lagoon-active"
         :class="[
-          route.path === '/contacts' ? 'bg-lagoon-active' : '',
+          route.path === '/contacts' ? 'bg-lagoon-active font-semibold' : '',
           railCollapsed ? 'justify-center px-0' : 'px-2.5',
         ]"
         :aria-current="route.path === '/contacts' ? 'page' : undefined"
@@ -298,9 +302,21 @@ const icons: Record<string, Component> = {
         <BookUser class="size-4 shrink-0" :class="route.path === '/contacts' ? 'text-brass' : 'text-lagoon-muted'" />
         <span v-show="!railCollapsed">Contacts</span>
       </RouterLink>
-      <p v-show="!railCollapsed" class="px-2.5 pt-4 text-xs text-lagoon-muted">
-        IT KAMFANY LIMITED
-      </p>
+      <RouterLink
+        to="/account"
+        class="mt-1 flex h-12 items-center gap-3 rounded-full text-lagoon-ink hover:bg-lagoon-active"
+        :class="railCollapsed ? 'justify-center px-0' : 'px-2'"
+        :title="railCollapsed ? signedInName : undefined"
+        @click="ui.closeMobile()"
+      >
+        <span class="grid size-8 shrink-0 place-items-center rounded-full bg-brass text-xs font-semibold text-brass-ink">
+          {{ signedInInitial }}
+        </span>
+        <span v-show="!railCollapsed" class="min-w-0">
+          <span class="block truncate text-sm font-semibold">{{ signedInName }}</span>
+          <span class="block truncate text-xs text-lagoon-muted">{{ auth.user?.email }}</span>
+        </span>
+      </RouterLink>
     </div>
   </aside>
 </template>

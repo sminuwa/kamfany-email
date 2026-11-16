@@ -163,13 +163,8 @@ pub async fn search_messages(
     let mut rows = rows;
     let next_cursor = if rows.len() > usize::try_from(PAGE).unwrap_or(50) {
         rows.pop();
-        rows.last().map(|row| {
-            format!(
-                "{}|{}",
-                row.item.activity_at.to_rfc3339(),
-                row.item.id
-            )
-        })
+        rows.last()
+            .map(|row| format!("{}|{}", row.item.activity_at.to_rfc3339(), row.item.id))
     } else {
         None
     };

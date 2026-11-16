@@ -145,7 +145,12 @@ pub async fn avatar(
 ) -> Result<impl IntoResponse, AppError> {
     let file = open_avatar(&state, &user, id).await?;
     let mut headers = HeaderMap::new();
-    headers.insert(header::CONTENT_TYPE, file.content_type.parse().unwrap_or(header::HeaderValue::from_static("application/octet-stream")));
+    headers.insert(
+        header::CONTENT_TYPE,
+        file.content_type
+            .parse()
+            .unwrap_or(header::HeaderValue::from_static("application/octet-stream")),
+    );
     headers.insert(
         header::CACHE_CONTROL,
         header::HeaderValue::from_static("private, no-store"),

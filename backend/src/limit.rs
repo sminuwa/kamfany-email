@@ -18,7 +18,12 @@ pub fn client_key(headers: &HeaderMap) -> String {
     forwarded.unwrap_or("direct").to_string()
 }
 
-pub async fn charge(pool: &PgPool, bucket: &str, window_secs: i32, max: i32) -> Result<(), AppError> {
+pub async fn charge(
+    pool: &PgPool,
+    bucket: &str,
+    window_secs: i32,
+    max: i32,
+) -> Result<(), AppError> {
     let hits = sqlx::query_scalar::<_, i32>(
         r#"
         INSERT INTO rate_limits (bucket, hits, window_started_at)

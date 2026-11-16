@@ -310,7 +310,10 @@ async fn sending_is_accepted_and_delivery_is_a_later_event() {
     .await;
     assert_eq!(status, StatusCode::CREATED, "{json}");
     assert_eq!(json["data"]["status"], "accepted");
-    let provider_id = json["data"]["provider_message_id"].as_str().unwrap().to_string();
+    let provider_id = json["data"]["provider_message_id"]
+        .as_str()
+        .unwrap()
+        .to_string();
 
     post_webhook(
         &desk,

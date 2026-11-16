@@ -4,9 +4,9 @@
 //! mailbox, how a message is filed, and how a reply or forward is addressed.
 
 pub(crate) mod access;
-pub(crate) mod compose;
 pub(crate) mod actions;
 pub(crate) mod catalog;
+pub(crate) mod compose;
 pub(crate) mod listing;
 pub(crate) mod reply;
 pub(crate) mod search;
@@ -17,5 +17,5 @@ pub use catalog::{
     update_folder, update_label,
 };
 pub use listing::{get_message, list_messages};
-pub use search::{SearchQuery, search_messages};
 pub use reply::{forward_message, reply_message};
+pub use search::{SearchQuery, search_messages};

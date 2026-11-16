@@ -11,6 +11,7 @@ interface MailboxJson {
   can_send: boolean;
   can_manage: boolean;
   is_default: boolean;
+  created_at?: string;
 }
 
 export interface DeskMailbox {
@@ -23,6 +24,7 @@ export interface DeskMailbox {
   canSend: boolean;
   canManage: boolean;
   isDefault: boolean;
+  createdAt: string;
 }
 
 function mailboxFrom(raw: MailboxJson): DeskMailbox {
@@ -36,6 +38,7 @@ function mailboxFrom(raw: MailboxJson): DeskMailbox {
     canSend: raw.can_send,
     canManage: raw.can_manage,
     isDefault: raw.is_default,
+    createdAt: raw.created_at ?? "",
   };
 }
 

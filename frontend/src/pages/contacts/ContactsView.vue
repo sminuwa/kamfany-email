@@ -37,10 +37,10 @@ function onAvatar(event: Event) {
 </script>
 
 <template>
-  <div class="grid h-full min-h-0 grid-cols-1 min-[960px]:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.1fr)]">
-    <section class="desk-chrome flex h-full min-h-0 flex-col border-line bg-surface min-[960px]:border-r" aria-label="Contacts">
+  <div class="grid h-full min-h-0 grid-cols-1 gap-3 min-[960px]:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.1fr)]">
+    <section class="desk-chrome flex h-full min-h-0 flex-col overflow-hidden rounded-panel bg-surface shadow-panel" aria-label="Contacts">
       <header class="border-b border-line px-4 py-3">
-        <h1 class="text-lg font-semibold tracking-[-0.02em]">Contacts</h1>
+        <h1 class="text-2xl font-semibold tracking-[-0.03em]">Contacts</h1>
         <p class="text-xs text-muted">{{ contacts.people.length === 1 ? "1 person" : `${contacts.people.length} people` }}</p>
         <label class="mt-3 block text-sm font-medium">
           Search contacts
@@ -79,8 +79,8 @@ function onAvatar(event: Event) {
         </li>
       </ul>
     </section>
-    <form class="flex h-full min-h-0 flex-col overflow-y-auto bg-canvas px-4 py-4" @submit.prevent="contacts.save()">
-      <h2 class="text-lg font-semibold tracking-[-0.02em]">{{ contacts.selectedId ? "Edit contact" : "New contact" }}</h2>
+    <form class="flex h-full min-h-0 flex-col overflow-y-auto rounded-panel bg-surface px-5 py-5 shadow-panel" @submit.prevent="contacts.save()">
+      <h2 class="text-2xl font-semibold tracking-[-0.03em]">{{ contacts.selectedId ? "Edit contact" : "New contact" }}</h2>
       <p class="mt-1 max-w-[48ch] text-sm leading-relaxed text-muted">
         Contacts belong to you. CSV columns are name, email, phone, company, and notes.
       </p>
@@ -117,7 +117,7 @@ function onAvatar(event: Event) {
       </label>
       <label class="mt-3 block text-sm font-medium">
         Notes
-        <textarea v-model="contacts.draft.notes" rows="4" maxlength="4000" class="mt-1 w-full rounded-control border border-line bg-surface px-3 py-2 text-sm text-ink" />
+        <textarea v-model="contacts.draft.notes" rows="4" maxlength="4000" class="mt-1 w-full rounded-control border border-line bg-canvas px-3 py-2 text-sm text-ink" />
       </label>
       <div class="mt-4 flex gap-2">
         <button type="submit" class="h-10 rounded-full bg-lagoon-ink px-5 text-sm font-semibold text-[#10211f] hover:bg-brass hover:text-brass-ink disabled:opacity-60" :disabled="contacts.saving">

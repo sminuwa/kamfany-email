@@ -33,11 +33,20 @@ export interface DeskSession {
   current: boolean;
 }
 
+interface PersonJson {
+  id: string;
+  email: string;
+  display_name: string;
+  roles: string[];
+  created_at?: string;
+}
+
 export interface PersonAccount {
   id: string;
   email: string;
   displayName: string;
   roles: string[];
+  createdAt: string;
 }
 
 function profileFrom(raw: ProfileJson): AccountProfile {
@@ -74,6 +83,21 @@ export async function updateName(displayName: string): Promise<AccountProfile> {
   return profileFrom(response.data.data);
 }
 
+export async function requestPasswordReset(email: string): Promise<string> {
+  const response = await http.post<ApiData<{ message: string }>>("/api/v1/auth/forgot-password", {
+    email,
+  });
+  return response.data.data.message;
+}
+
+export async function resetPassword(token: string, password: string): Promise<string> {
+  const response = await http.post<ApiData<{ message: string }>>("/api/v1/auth/reset-password", {
+    token,
+    password,
+  });
+  return response.data.data.message;
+}
+
 export async function changePassword(currentPassword: string, newPassword: string): Promise<string> {
   const response = await http.post<ApiData<{ message: string }>>("/api/v1/auth/password", {
     current_password: currentPassword,
@@ -98,12 +122,13 @@ export async function revokeSession(id: string): Promise<void> {
 }
 
 export async function fetchPeople(): Promise<PersonAccount[]> {
-  const response = await http.get<ApiData<ProfileJson[]>>("/api/v1/users");
+  const response = await http.get<ApiData<PersonJson[]>>("/api/v1/users");
   return response.data.data.map((person) => ({
     id: person.id,
     email: person.email,
     displayName: person.display_name,
     roles: person.roles,
+    createdAt: person.created_at ?? "",
   }));
 }
 

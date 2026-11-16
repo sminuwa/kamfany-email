@@ -25,7 +25,7 @@ function choose(id: string) {
 </script>
 
 <template>
-  <MenuPanel v-model="open" label="Add label">
+  <MenuPanel v-model="open" label="Add label" :align="compact ? 'end' : 'start'">
     <template #trigger="{ toggle, open: isOpen }">
       <button
         type="button"
@@ -40,6 +40,7 @@ function choose(id: string) {
         <span v-if="!compact">Label</span>
       </button>
     </template>
+    <p v-if="mail.labels.length === 0" class="px-2.5 py-2 text-sm text-muted">No labels yet.</p>
     <button
       v-for="label in mail.labels"
       :key="label.id"

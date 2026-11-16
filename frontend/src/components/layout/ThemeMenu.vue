@@ -25,7 +25,7 @@ function choose(theme: ThemePreference) {
     <template #trigger="{ toggle, open: isOpen }">
       <button
         type="button"
-        class="grid size-9 place-items-center rounded-control text-ink hover:bg-ink/5 min-[960px]:size-10"
+        class="grid size-9 place-items-center rounded-control text-ink hover:bg-surface min-[960px]:size-10"
         :aria-expanded="isOpen"
         aria-haspopup="menu"
         aria-label="Theme"

@@ -89,11 +89,16 @@ fn call(method: &str, uri: &str, cookie: &str, body: Option<serde_json::Value>) 
         builder = builder.header(header::CONTENT_TYPE, "application/json");
     }
     builder
-        .body(Body::from(body.map(|value| value.to_string()).unwrap_or_default()))
+        .body(Body::from(
+            body.map(|value| value.to_string()).unwrap_or_default(),
+        ))
         .expect("request")
 }
 
-async fn send(app: &axum::Router, request: Request<Body>) -> (StatusCode, serde_json::Value, Option<String>) {
+async fn send(
+    app: &axum::Router,
+    request: Request<Body>,
+) -> (StatusCode, serde_json::Value, Option<String>) {
     let response = app.clone().oneshot(request).await.expect("response");
     let status = response.status();
     let cookie = response
@@ -103,7 +108,12 @@ async fn send(app: &axum::Router, request: Request<Body>) -> (StatusCode, serde_
         .and_then(|value| value.split(';').next())
         .and_then(|value| value.strip_prefix("kamfany_session="))
         .map(str::to_string);
-    let bytes = response.into_body().collect().await.expect("body").to_bytes();
+    let bytes = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body")
+        .to_bytes();
     let json = if bytes.is_empty() {
         serde_json::Value::Null
     } else {
@@ -112,7 +122,13 @@ async fn send(app: &axum::Router, request: Request<Body>) -> (StatusCode, serde_
     (status, json, cookie)
 }
 
-fn inbound(address: &str, provider_id: &str, header: &str, reply_to: Option<&str>, subject: &str) -> InboundEmail {
+fn inbound(
+    address: &str,
+    provider_id: &str,
+    header: &str,
+    reply_to: Option<&str>,
+    subject: &str,
+) -> InboundEmail {
     InboundEmail {
         provider_message_id: provider_id.to_string(),
         from_address: "amaka@northwind.example".to_string(),
@@ -172,7 +188,13 @@ async fn stored_mail_can_be_filed_threaded_and_labelled() {
     let second_header = format!("<second-{suffix}@example.test>");
     store_inbound(
         &desk.pool,
-        &inbound(&address, &format!("in-{suffix}-1"), &first_header, None, "Harbour invoice"),
+        &inbound(
+            &address,
+            &format!("in-{suffix}-1"),
+            &first_header,
+            None,
+            "Harbour invoice",
+        ),
         &[],
     )
     .await
@@ -202,22 +224,43 @@ async fn stored_mail_can_be_filed_threaded_and_labelled() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(page["data"]["messages"].as_array().expect("messages").len(), 2);
-    let message_id = page["data"]["messages"][0]["id"].as_str().expect("id").to_string();
-    let thread_id = page["data"]["messages"][0]["thread_id"].as_str().expect("thread");
-    assert_eq!(page["data"]["messages"][1]["thread_id"].as_str(), Some(thread_id));
+    assert_eq!(
+        page["data"]["messages"].as_array().expect("messages").len(),
+        2
+    );
+    let message_id = page["data"]["messages"][0]["id"]
+        .as_str()
+        .expect("id")
+        .to_string();
+    let thread_id = page["data"]["messages"][0]["thread_id"]
+        .as_str()
+        .expect("thread");
+    assert_eq!(
+        page["data"]["messages"][1]["thread_id"].as_str(),
+        Some(thread_id)
+    );
 
     let (status, detail, _) = send(
         &desk.app,
-        call("GET", &format!("/api/v1/messages/{message_id}"), &owner_cookie, None),
+        call(
+            "GET",
+            &format!("/api/v1/messages/{message_id}"),
+            &owner_cookie,
+            None,
+        ),
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(detail["data"]["thread"].as_array().expect("thread").len(), 2);
-    assert!(!detail["data"]["message"]["cc"]
-        .as_array()
-        .expect("cc")
-        .is_empty());
+    assert_eq!(
+        detail["data"]["thread"].as_array().expect("thread").len(),
+        2
+    );
+    assert!(
+        !detail["data"]["message"]["cc"]
+            .as_array()
+            .expect("cc")
+            .is_empty()
+    );
 
     let (status, _, stranger_cookie) = send(
         &desk.app,
@@ -337,7 +380,12 @@ async fn stored_mail_can_be_filed_threaded_and_labelled() {
         .expect("inbox");
     let (status, _, _) = send(
         &desk.app,
-        call("DELETE", &format!("/api/v1/folders/{}", inbox["id"].as_str().unwrap()), &owner_cookie, None),
+        call(
+            "DELETE",
+            &format!("/api/v1/folders/{}", inbox["id"].as_str().unwrap()),
+            &owner_cookie,
+            None,
+        ),
     )
     .await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);

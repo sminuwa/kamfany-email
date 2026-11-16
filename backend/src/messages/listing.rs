@@ -105,7 +105,9 @@ pub async fn list_messages(
             "inbox" | "starred" | "snoozed" | "sent" | "drafts" | "archive" | "spam" | "trash"
         )
     {
-        return Err(AppError::Validation("That folder view is not known.".into()));
+        return Err(AppError::Validation(
+            "That folder view is not known.".into(),
+        ));
     }
     if query.folder_id.is_none() && view == "drafts" {
         return list_drafts(pool, mailbox_id, user.id, query.cursor).await;
@@ -210,7 +212,9 @@ pub async fn get_message(
     user: &CurrentUser,
 ) -> Result<MessageView, AppError> {
     let mailbox_id = super::access::message_mailbox(pool, message_id).await?;
-    let grant = require_reader(pool, mailbox_id, user).await.map_err(hide_forbidden)?;
+    let grant = require_reader(pool, mailbox_id, user)
+        .await
+        .map_err(hide_forbidden)?;
     let row = sqlx::query_as::<_, DetailRow>(
         r#"
         SELECT m.id,
@@ -387,7 +391,10 @@ fn hide_forbidden(error: AppError) -> AppError {
     }
 }
 
-pub(crate) async fn hydrate(pool: &PgPool, rows: Vec<ItemRow>) -> Result<Vec<MessageItem>, AppError> {
+pub(crate) async fn hydrate(
+    pool: &PgPool,
+    rows: Vec<ItemRow>,
+) -> Result<Vec<MessageItem>, AppError> {
     if rows.is_empty() {
         return Ok(Vec::new());
     }
@@ -510,7 +517,9 @@ async fn thread_of(
     .map_err(AppError::from)
 }
 
-pub(crate) fn parse_cursor(value: Option<&str>) -> Result<(Option<DateTime<Utc>>, Option<Uuid>), AppError> {
+pub(crate) fn parse_cursor(
+    value: Option<&str>,
+) -> Result<(Option<DateTime<Utc>>, Option<Uuid>), AppError> {
     let Some(value) = value.filter(|item| !item.is_empty()) else {
         return Ok((None, None));
     };

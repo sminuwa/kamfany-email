@@ -35,7 +35,7 @@ function choose(folder: string) {
 </script>
 
 <template>
-  <MenuPanel v-model="open" label="Move to">
+  <MenuPanel v-model="open" label="Move to" :align="compact ? 'end' : 'start'">
     <template #trigger="{ toggle, open: isOpen }">
       <button
         type="button"

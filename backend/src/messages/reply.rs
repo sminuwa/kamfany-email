@@ -39,7 +39,9 @@ pub async fn reply_message(
         .subject
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| prefixed(&source.subject, "Re:"));
-    let text = fields.text.or_else(|| Some(quote(&source.from_address, &source.body_text)));
+    let text = fields
+        .text
+        .or_else(|| Some(quote(&source.from_address, &source.body_text)));
     send_linked(
         state,
         user,
@@ -69,7 +71,9 @@ pub async fn forward_message(
         .subject
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| prefixed(&source.subject, "Fwd:"));
-    let text = fields.text.or_else(|| Some(quote(&source.from_address, &source.body_text)));
+    let text = fields
+        .text
+        .or_else(|| Some(quote(&source.from_address, &source.body_text)));
     send_linked(
         state,
         user,
@@ -155,7 +159,10 @@ fn dedup_addresses(addresses: &mut Vec<String>) {
 
 fn prefixed(subject: &str, prefix: &str) -> String {
     let trimmed = subject.trim();
-    if trimmed.to_ascii_lowercase().starts_with(&prefix.to_ascii_lowercase()) {
+    if trimmed
+        .to_ascii_lowercase()
+        .starts_with(&prefix.to_ascii_lowercase())
+    {
         trimmed.to_string()
     } else {
         format!("{prefix} {trimmed}")
@@ -267,10 +274,7 @@ async fn send_linked(
     source: &Source,
     mail: LinkedMail,
 ) -> Result<SentMessage, AppError> {
-    let parent = source
-        .message_id_header
-        .clone()
-        .unwrap_or_default();
+    let parent = source.message_id_header.clone().unwrap_or_default();
     let mut references = header_tokens(None, source.references_header.as_deref());
     if !parent.is_empty() && !references.iter().any(|token| token == &parent) {
         references.push(parent.clone());

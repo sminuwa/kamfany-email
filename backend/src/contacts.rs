@@ -408,7 +408,12 @@ fn clean_input(input: ContactInput) -> Result<ContactInput, AppError> {
             "Enter a name of 120 characters or fewer.".into(),
         ));
     }
-    let email = match input.email.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+    let email = match input
+        .email
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
         Some(value) => Some(normalize_email(value)?),
         None => None,
     };
@@ -424,8 +429,15 @@ fn clean_input(input: ContactInput) -> Result<ContactInput, AppError> {
     })
 }
 
-fn optional_text(value: Option<String>, max: usize, message: &str) -> Result<Option<String>, AppError> {
-    let Some(value) = value.map(|item| item.trim().to_string()).filter(|item| !item.is_empty()) else {
+fn optional_text(
+    value: Option<String>,
+    max: usize,
+    message: &str,
+) -> Result<Option<String>, AppError> {
+    let Some(value) = value
+        .map(|item| item.trim().to_string())
+        .filter(|item| !item.is_empty())
+    else {
         return Ok(None);
     };
     if value.chars().count() > max {
@@ -448,9 +460,9 @@ pub fn parse_csv(text: &str) -> Vec<ContactInput> {
         return Vec::new();
     };
     let header = split_csv_line(first);
-    let named = header
-        .first()
-        .is_some_and(|cell| cell.eq_ignore_ascii_case("name") || cell.eq_ignore_ascii_case("full name"));
+    let named = header.first().is_some_and(|cell| {
+        cell.eq_ignore_ascii_case("name") || cell.eq_ignore_ascii_case("full name")
+    });
     let mut rows = Vec::new();
     if !named {
         rows.push(row_from(&header));
@@ -507,7 +519,9 @@ mod tests {
 
     #[test]
     fn csv_keeps_a_quoted_comma() {
-        let rows = parse_csv("name,email,phone,company,notes\n\"Ada, Desk\",ada@kamfany.com,,\"IT KAMFANY\",\"Hello\"\n");
+        let rows = parse_csv(
+            "name,email,phone,company,notes\n\"Ada, Desk\",ada@kamfany.com,,\"IT KAMFANY\",\"Hello\"\n",
+        );
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].full_name, "Ada, Desk");
         assert_eq!(rows[0].email.as_deref(), Some("ada@kamfany.com"));

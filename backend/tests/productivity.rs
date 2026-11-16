@@ -96,7 +96,12 @@ async fn login(desk: &Desk, email: &str) -> String {
 async fn call(app: &axum::Router, request: Request<Body>) -> (StatusCode, serde_json::Value) {
     let response = app.clone().oneshot(request).await.expect("response");
     let status = response.status();
-    let bytes = response.into_body().collect().await.expect("body").to_bytes();
+    let bytes = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body")
+        .to_bytes();
     let json = serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null);
     (status, json)
 }
@@ -211,7 +216,10 @@ async fn contacts_search_and_notices_stay_with_their_owner() {
                 .header(header::ORIGIN, ORIGIN)
                 .header("x-kamfany-request", "1")
                 .header(header::COOKIE, format!("kamfany_session={owner_cookie}"))
-                .header(header::CONTENT_TYPE, format!("multipart/form-data; boundary={boundary}"))
+                .header(
+                    header::CONTENT_TYPE,
+                    format!("multipart/form-data; boundary={boundary}"),
+                )
                 .body(Body::from(body))
                 .unwrap(),
         )
@@ -270,13 +278,12 @@ async fn contacts_search_and_notices_stay_with_their_owner() {
     .await
     .unwrap();
     assert_eq!(notices, 1);
-    let stranger_notices: i64 = sqlx::query_scalar(
-        "SELECT count(*) FROM notifications WHERE user_id = $1",
-    )
-    .bind(stranger)
-    .fetch_one(&desk.pool)
-    .await
-    .unwrap();
+    let stranger_notices: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM notifications WHERE user_id = $1")
+            .bind(stranger)
+            .fetch_one(&desk.pool)
+            .await
+            .unwrap();
     assert_eq!(stranger_notices, 0);
 
     let (status, listed) = call(

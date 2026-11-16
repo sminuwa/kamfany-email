@@ -69,7 +69,11 @@ impl BlobStore {
     }
 
     pub async fn get(&self, key: &str) -> Result<Vec<u8>, AppError> {
-        let result = self.inner.get(&Path::from(key)).await.map_err(store_error)?;
+        let result = self
+            .inner
+            .get(&Path::from(key))
+            .await
+            .map_err(store_error)?;
         let bytes = result.bytes().await.map_err(store_error)?;
         Ok(bytes.to_vec())
     }

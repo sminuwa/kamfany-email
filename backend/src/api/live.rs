@@ -45,7 +45,8 @@ pub async fn socket(
     let origin = headers
         .get(header::ORIGIN)
         .and_then(|value| value.to_str().ok());
-    let allowed = origin.is_some_and(|value| state.config.cors_origins.iter().any(|item| item == value));
+    let allowed =
+        origin.is_some_and(|value| state.config.cors_origins.iter().any(|item| item == value));
     if !allowed {
         return Err(AppError::Forbidden(
             "This connection is not from the desk.".into(),

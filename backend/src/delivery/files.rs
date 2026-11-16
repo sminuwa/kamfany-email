@@ -84,11 +84,7 @@ pub async fn require_draft(
     }
 }
 
-pub async fn finish_draft(
-    pool: &PgPool,
-    draft_id: Uuid,
-    message_id: Uuid,
-) -> Result<(), AppError> {
+pub async fn finish_draft(pool: &PgPool, draft_id: Uuid, message_id: Uuid) -> Result<(), AppError> {
     let moved = sqlx::query(
         r#"
         UPDATE attachments

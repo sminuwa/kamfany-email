@@ -12,6 +12,7 @@ function box(overrides: Partial<DeskMailbox> & Pick<DeskMailbox, "id">): DeskMai
     canSend: false,
     canManage: false,
     isDefault: false,
+    createdAt: "2026-01-01T00:00:00Z",
     ...overrides,
   };
 }

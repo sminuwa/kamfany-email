@@ -35,7 +35,12 @@ async fn desk() -> Desk {
     let config = AppConfig::from_lookup(|key| match key {
         "APP_ENV" => Some("test".to_string()),
         "CORS_ORIGINS" => Some(ORIGIN.to_string()),
-        "STORAGE_DIR" => Some(std::env::temp_dir().join("kamfany-mail-compose-test").display().to_string()),
+        "STORAGE_DIR" => Some(
+            std::env::temp_dir()
+                .join("kamfany-mail-compose-test")
+                .display()
+                .to_string(),
+        ),
         _ => None,
     })
     .expect("config");
@@ -85,10 +90,18 @@ async fn login(desk: &Desk, email: &str) -> String {
         .to_string()
 }
 
-async fn call(app: &axum::Router, request: Request<Body>) -> (StatusCode, serde_json::Value, Vec<u8>) {
+async fn call(
+    app: &axum::Router,
+    request: Request<Body>,
+) -> (StatusCode, serde_json::Value, Vec<u8>) {
     let response = app.clone().oneshot(request).await.expect("response");
     let status = response.status();
-    let bytes = response.into_body().collect().await.expect("body").to_bytes();
+    let bytes = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body")
+        .to_bytes();
     let json = serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null);
     (status, json, bytes.to_vec())
 }
@@ -99,8 +112,18 @@ async fn a_draft_keeps_its_file_until_it_is_sent_or_discarded() {
     let suffix = Uuid::new_v4().simple();
     let owner_email = format!("composer-{suffix}@kamfany.test");
     let stranger_email = format!("stranger-{suffix}@kamfany.test");
-    let owner = create_user(&desk.pool, &owner_email, "10000000-0000-4000-8000-000000000001").await;
-    let stranger = create_user(&desk.pool, &stranger_email, "10000000-0000-4000-8000-000000000003").await;
+    let owner = create_user(
+        &desk.pool,
+        &owner_email,
+        "10000000-0000-4000-8000-000000000001",
+    )
+    .await;
+    let stranger = create_user(
+        &desk.pool,
+        &stranger_email,
+        "10000000-0000-4000-8000-000000000003",
+    )
+    .await;
     let mailbox = sqlx::query_scalar::<_, Uuid>(
         "INSERT INTO mailboxes (address, display_name, is_enabled) VALUES ($1, 'Desk', true) RETURNING id",
     )
@@ -140,7 +163,12 @@ async fn a_draft_keeps_its_file_until_it_is_sent_or_discarded() {
     )
     .await;
     assert_eq!(status, StatusCode::CREATED, "{json}");
-    assert!(!json["data"]["body_html"].as_str().unwrap().contains("script"));
+    assert!(
+        !json["data"]["body_html"]
+            .as_str()
+            .unwrap()
+            .contains("script")
+    );
     let draft_id = json["data"]["id"].as_str().unwrap();
 
     let boundary = "kamfanyboundary";
@@ -155,7 +183,10 @@ async fn a_draft_keeps_its_file_until_it_is_sent_or_discarded() {
             .header(header::ORIGIN, ORIGIN)
             .header("x-kamfany-request", "1")
             .header(header::COOKIE, format!("kamfany_session={cookie}"))
-            .header(header::CONTENT_TYPE, format!("multipart/form-data; boundary={boundary}"))
+            .header(
+                header::CONTENT_TYPE,
+                format!("multipart/form-data; boundary={boundary}"),
+            )
             .body(Body::from(body))
             .unwrap(),
     )

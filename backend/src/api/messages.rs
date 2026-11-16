@@ -9,14 +9,14 @@ use crate::api::body::Body;
 use crate::api::errors::AppError;
 use crate::api::response::ApiData;
 use crate::auth::{CurrentUser, pool_of};
+use crate::messages::actions::{BulkChange, Destination};
+use crate::messages::listing::ListQuery;
+use crate::messages::reply::ComposeFields;
 use crate::messages::{
     add_label, bulk, create_folder, create_label, delete_folder, delete_label, forward_message,
     get_message, list_folders, list_labels, list_messages, mark_read, mark_star, move_messages,
     remove_label, reply_message, update_folder, update_label,
 };
-use crate::messages::actions::{BulkChange, Destination};
-use crate::messages::listing::ListQuery;
-use crate::messages::reply::ComposeFields;
 use crate::state::AppState;
 
 #[derive(Deserialize)]
@@ -188,7 +188,13 @@ pub async fn archive_message(
     user: CurrentUser,
     Path(id): Path<Uuid>,
 ) -> Result<StatusCode, AppError> {
-    move_one(&state, &user, id, Destination::System("archive".to_string())).await
+    move_one(
+        &state,
+        &user,
+        id,
+        Destination::System("archive".to_string()),
+    )
+    .await
 }
 
 pub async fn move_message(
@@ -267,7 +273,12 @@ pub async fn reply(
         },
     )
     .await?;
-    Ok((StatusCode::CREATED, Json(ApiData { data: sent_view(sent) })))
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiData {
+            data: sent_view(sent),
+        }),
+    ))
 }
 
 pub async fn forward(
@@ -291,7 +302,12 @@ pub async fn forward(
         },
     )
     .await?;
-    Ok((StatusCode::CREATED, Json(ApiData { data: sent_view(sent) })))
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiData {
+            data: sent_view(sent),
+        }),
+    ))
 }
 
 pub async fn folders(

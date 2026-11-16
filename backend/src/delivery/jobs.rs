@@ -159,7 +159,7 @@ async fn handle(state: &AppState, job: &Job) -> Result<(), AppError> {
                         email_id,
                         &files,
                     )
-                        .await?;
+                    .await?;
                 }
                 Err(crate::providers::ProviderError::Rejected { .. })
                 | Err(crate::providers::ProviderError::Unexpected) => {

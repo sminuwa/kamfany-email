@@ -70,7 +70,7 @@ A message has one organizational folder. Labels are many-to-many. Starred and sn
 
 Search uses a generated `tsvector` on subject, sender, and plain text, plus the relational filters in `messages::search`. HTML is not indexed. The search service is separate from the folder listing so it can change later. A query returns the latest 50 matches the caller is allowed to read.
 
-Creating a mailbox row does not create a receiving address. `is_enabled` and `is_receiving_verified` stay false until the provider route is confirmed.
+Creating a mailbox row does not create a receiving address. A new mailbox is enabled. `is_receiving_verified` stays false until the provider route is confirmed.
 
 Seeded roles are owner, administrator, and member. Mailbox grants (`can_read`, `can_send`, `can_manage`) are separate from platform roles.
 

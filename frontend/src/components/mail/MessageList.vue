@@ -80,6 +80,7 @@ const narrowed = computed(
 );
 
 const heading = computed(() => (mail.searchActive ? "Search" : folder.value.label));
+const unreadCount = computed(() => filtered.value.filter((message) => !message.isRead).length);
 
 const summary = computed(() => {
   const total = filtered.value.length;
@@ -88,10 +89,6 @@ const summary = computed(() => {
   }
   if (narrowed.value) {
     return total === 1 ? "1 match" : `${total} matches`;
-  }
-  const unread = filtered.value.filter((message) => !message.isRead).length;
-  if (unread > 0) {
-    return unread === 1 ? "1 unread" : `${unread} unread`;
   }
   return total === 1 ? "1 message" : `${total} messages`;
 });
@@ -206,7 +203,7 @@ watch(activeLabel, (label) => {
 
 <template>
   <section class="desk-chrome flex h-full min-h-0 flex-col border-line bg-surface" :aria-label="folder.label">
-    <header class="border-b border-line px-3 py-2">
+    <header class="border-b border-line px-4 py-3">
       <div class="flex min-h-10 items-center gap-3">
         <input
           ref="allBox"
@@ -218,7 +215,15 @@ watch(activeLabel, (label) => {
           @change="onSelectAll"
         />
         <div class="min-w-0 flex-1">
-          <h1 class="truncate text-lg font-semibold tracking-[-0.02em]">{{ heading }}</h1>
+          <div class="flex items-center gap-2">
+            <h1 class="truncate text-2xl font-semibold tracking-[-0.03em]">{{ heading }}</h1>
+            <span
+              v-if="!mail.searchActive && !narrowed && unreadCount > 0"
+              class="rounded-full bg-brass px-2 py-0.5 text-[11px] font-semibold tabular-nums text-brass-ink"
+            >
+              {{ unreadCount }} unread
+            </span>
+          </div>
           <p class="text-xs text-muted" aria-live="polite">{{ summary }}</p>
         </div>
         <button
@@ -284,7 +289,7 @@ watch(activeLabel, (label) => {
       </div>
     </header>
 
-    <div class="min-h-0 flex-1 overflow-y-auto" role="listbox" :aria-label="`${folder.label} messages`">
+    <div class="min-h-0 flex-1 overflow-y-auto rounded-b-panel" role="listbox" :aria-label="`${folder.label} messages`">
       <div v-if="filtered.length === 0" class="grid h-full place-items-center px-6 py-16 text-center">
         <div class="max-w-[36ch]">
           <p class="text-base font-semibold">{{ emptyTitle }}</p>

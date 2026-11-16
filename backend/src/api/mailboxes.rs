@@ -2,6 +2,7 @@ use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool};
 use uuid::Uuid;
@@ -23,6 +24,7 @@ pub struct MailboxView {
     pub can_send: bool,
     pub can_manage: bool,
     pub is_default: bool,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Serialize, FromRow)]
@@ -67,6 +69,7 @@ struct MailboxRow {
     can_send: Option<bool>,
     can_manage: Option<bool>,
     is_default: Option<bool>,
+    created_at: DateTime<Utc>,
 }
 
 pub async fn list_mailboxes(
@@ -112,7 +115,7 @@ pub async fn create_mailbox(
     let name = display_name(&body.display_name)?;
     let mut tx = pool.begin().await?;
     let id = match sqlx::query_scalar::<_, Uuid>(
-        "INSERT INTO mailboxes (address, display_name) VALUES ($1, $2) RETURNING id",
+        "INSERT INTO mailboxes (address, display_name, is_enabled) VALUES ($1, $2, true) RETURNING id",
     )
     .bind(&address)
     .bind(&name)
@@ -409,9 +412,9 @@ pub async fn make_default(
     Ok(Json(ApiData { data: view }))
 }
 
-const MAILBOX_LIST: &str = "SELECT m.id, m.address::text AS address, m.display_name, m.is_enabled, m.is_receiving_verified, mu.can_read, mu.can_send, mu.can_manage, mu.is_default FROM mailboxes m LEFT JOIN mailbox_users mu ON mu.mailbox_id = m.id AND mu.user_id = $1 WHERE mu.user_id IS NOT NULL OR $2 ORDER BY m.address";
+const MAILBOX_LIST: &str = "SELECT m.id, m.address::text AS address, m.display_name, m.is_enabled, m.is_receiving_verified, mu.can_read, mu.can_send, mu.can_manage, mu.is_default, m.created_at FROM mailboxes m LEFT JOIN mailbox_users mu ON mu.mailbox_id = m.id AND mu.user_id = $1 WHERE mu.user_id IS NOT NULL OR $2 ORDER BY m.address";
 
-const MAILBOX_ONE: &str = "SELECT m.id, m.address::text AS address, m.display_name, m.is_enabled, m.is_receiving_verified, mu.can_read, mu.can_send, mu.can_manage, mu.is_default FROM mailboxes m LEFT JOIN mailbox_users mu ON mu.mailbox_id = m.id AND mu.user_id = $1 WHERE m.id = $2";
+const MAILBOX_ONE: &str = "SELECT m.id, m.address::text AS address, m.display_name, m.is_enabled, m.is_receiving_verified, mu.can_read, mu.can_send, mu.can_manage, mu.is_default, m.created_at FROM mailboxes m LEFT JOIN mailbox_users mu ON mu.mailbox_id = m.id AND mu.user_id = $1 WHERE m.id = $2";
 
 async fn load_mailbox(
     pool: &PgPool,
@@ -444,6 +447,7 @@ fn view_from(row: MailboxRow, platform: bool) -> MailboxView {
         can_send: row.can_send.unwrap_or(false),
         can_manage: row.can_manage.unwrap_or(false) || platform,
         is_default: row.is_default.unwrap_or(false),
+        created_at: row.created_at,
     }
 }
 

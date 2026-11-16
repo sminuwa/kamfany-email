@@ -46,7 +46,9 @@ impl LiveHub {
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<Uuid, Vec<mpsc::UnboundedSender<String>>>> {
-        self.inner.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+        self.inner
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 }
 
@@ -184,10 +186,7 @@ pub async fn drive(mut socket: WebSocket, mut notices: mpsc::UnboundedReceiver<S
     }
 }
 
-pub async fn list_notices(
-    state: &AppState,
-    user_id: Uuid,
-) -> Result<Vec<Notice>, AppError> {
+pub async fn list_notices(state: &AppState, user_id: Uuid) -> Result<Vec<Notice>, AppError> {
     let pool = pool_of(state)?;
     let rows = sqlx::query_as::<_, Notice>(
         r#"
@@ -204,11 +203,7 @@ pub async fn list_notices(
     Ok(rows)
 }
 
-pub async fn mark_notice(
-    state: &AppState,
-    user_id: Uuid,
-    notice_id: Uuid,
-) -> Result<(), AppError> {
+pub async fn mark_notice(state: &AppState, user_id: Uuid, notice_id: Uuid) -> Result<(), AppError> {
     let pool = pool_of(state)?;
     let updated = sqlx::query(
         "UPDATE notifications SET read_at = COALESCE(read_at, now()) WHERE id = $1 AND user_id = $2",
@@ -225,12 +220,10 @@ pub async fn mark_notice(
 
 pub async fn mark_all(state: &AppState, user_id: Uuid) -> Result<(), AppError> {
     let pool = pool_of(state)?;
-    sqlx::query(
-        "UPDATE notifications SET read_at = now() WHERE user_id = $1 AND read_at IS NULL",
-    )
-    .bind(user_id)
-    .execute(pool)
-    .await?;
+    sqlx::query("UPDATE notifications SET read_at = now() WHERE user_id = $1 AND read_at IS NULL")
+        .bind(user_id)
+        .execute(pool)
+        .await?;
     Ok(())
 }
 

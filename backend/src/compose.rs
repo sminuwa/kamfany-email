@@ -33,9 +33,15 @@ pub fn message_content(
     };
     let text = match text {
         Some(value) if !value.trim().is_empty() => Some(value.trim().to_string()),
-        _ => html.as_deref().map(html_to_text).filter(|value| !value.is_empty()),
+        _ => html
+            .as_deref()
+            .map(html_to_text)
+            .filter(|value| !value.is_empty()),
     };
-    if text.as_ref().is_some_and(|value| value.chars().count() > 200_000) {
+    if text
+        .as_ref()
+        .is_some_and(|value| value.chars().count() > 200_000)
+    {
         return Err(AppError::Validation("The message body is too long.".into()));
     }
     Ok((text, html))
@@ -44,8 +50,23 @@ pub fn message_content(
 pub fn sanitize_html(value: &str) -> String {
     let mut tags = HashSet::new();
     for tag in [
-        "a", "blockquote", "br", "div", "em", "h1", "h2", "h3", "i", "li", "ol", "p", "span",
-        "strong", "u", "ul", "b",
+        "a",
+        "blockquote",
+        "br",
+        "div",
+        "em",
+        "h1",
+        "h2",
+        "h3",
+        "i",
+        "li",
+        "ol",
+        "p",
+        "span",
+        "strong",
+        "u",
+        "ul",
+        "b",
     ] {
         tags.insert(tag);
     }
@@ -148,9 +169,7 @@ pub fn safe_filename(value: &str) -> Result<String, AppError> {
     }
     let name = name.trim().to_string();
     if name.is_empty() {
-        return Err(AppError::Validation(
-            "Choose a file with a name.".into(),
-        ));
+        return Err(AppError::Validation("Choose a file with a name.".into()));
     }
     Ok(name)
 }
@@ -173,9 +192,9 @@ pub fn content_type(value: &str) -> String {
     let value = value.trim().to_ascii_lowercase();
     if (1..80).contains(&value.len())
         && value.contains('/')
-        && value
-            .chars()
-            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '/' | '+' | '-' | '.'))
+        && value.chars().all(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '/' | '+' | '-' | '.')
+        })
     {
         return value;
     }
@@ -208,9 +227,7 @@ fn style_is_safe(value: &str) -> bool {
 
 fn href_is_safe(value: &str) -> bool {
     let value = value.trim();
-    value.starts_with("https://")
-        || value.starts_with("http://")
-        || value.starts_with("mailto:")
+    value.starts_with("https://") || value.starts_with("http://") || value.starts_with("mailto:")
 }
 
 fn color_is_safe(value: &str) -> bool {

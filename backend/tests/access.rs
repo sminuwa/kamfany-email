@@ -1,7 +1,12 @@
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use axum::body::Body;
+use axum::Json;
+use axum::Router;
+use axum::body::{Body, Bytes};
+use axum::extract::State;
 use axum::http::{Request, StatusCode, header};
+use axum::routing::post;
 use http_body_util::BodyExt;
 use kamfany_mail::auth::hash_password;
 use kamfany_mail::config::AppConfig;
@@ -251,7 +256,7 @@ async fn sessions_and_mailbox_grants_are_enforced() {
     .await;
     assert_eq!(status, StatusCode::CREATED);
     assert_eq!(created["data"]["is_receiving_verified"], false);
-    assert_eq!(created["data"]["is_enabled"], false);
+    assert_eq!(created["data"]["is_enabled"], true);
     assert_eq!(created["data"]["can_read"], true);
     let mailbox_id = created["data"]["id"].as_str().expect("id").to_string();
 
@@ -402,7 +407,13 @@ async fn password_reset_does_not_pretend_to_send_mail() {
     let app = router(AppState::without_database(config).expect("storage")).expect("router");
     let (status, json, _) = send(
         &app,
-        call("POST", "/api/v1/auth/forgot-password", None, None, true),
+        call(
+            "POST",
+            "/api/v1/auth/forgot-password",
+            None,
+            Some(json!({ "email": "adaeze@kamfany.com" })),
+            true,
+        ),
     )
     .await;
     assert_eq!(status, StatusCode::OK);
@@ -423,11 +434,170 @@ async fn password_reset_does_not_pretend_to_send_mail() {
         ),
     )
     .await;
-    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(json["error"]["code"], "not_ready");
+}
+
+#[tokio::test]
+async fn a_reset_link_replaces_the_password_once() {
+    let _ = dotenvy::dotenv();
+    let url = std::env::var("DATABASE_URL").expect("DATABASE_URL");
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .acquire_timeout(Duration::from_secs(5))
+        .connect(&url)
+        .await
+        .expect("database");
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("migrations");
+    let sent = Arc::new(Mutex::new(Vec::new()));
+    let base = capture_mail(sent.clone()).await;
+    let base_for_config = base.clone();
+    let config = AppConfig::from_lookup(move |key| match key {
+        "APP_ENV" => Some("test".to_string()),
+        "CORS_ORIGINS" => Some(ORIGIN.to_string()),
+        "RESEND_API_KEY" => Some("test-key".to_string()),
+        "RESEND_API_BASE" => Some(base_for_config.clone()),
+        "RESEND_SENDING_DOMAIN" => Some("kamfany.com".to_string()),
+        _ => None,
+    })
+    .expect("config");
+    let app = router(
+        AppState::without_database(config)
+            .expect("storage")
+            .with_pool(pool.clone()),
+    )
+    .expect("router");
+    let owner_role = uuid::uuid!("10000000-0000-4000-8000-000000000001");
+    let email = format!("reset-{}@example.com", Uuid::new_v4().simple());
+    let user_id = create_user(&pool, &email, "long-enough-password", owner_role).await;
+
+    let (status, json, _) = send(
+        &app,
+        call(
+            "POST",
+            "/api/v1/auth/forgot-password",
+            None,
+            Some(json!({ "email": email })),
+            true,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
     assert!(
-        json["error"]["message"]
+        json["data"]["message"]
             .as_str()
-            .expect("message")
-            .contains("not available")
+            .unwrap()
+            .contains("on its way")
     );
+    let body = sent.lock().expect("sent mail").pop().expect("reset mail");
+    let token = body
+        .split("token=")
+        .nth(1)
+        .and_then(|value| value.split(|ch: char| !ch.is_ascii_hexdigit()).next())
+        .expect("token");
+    assert_eq!(token.len(), 64);
+
+    let (status, missing, _) = send(
+        &app,
+        call(
+            "POST",
+            "/api/v1/auth/forgot-password",
+            None,
+            Some(json!({ "email": "missing-person@example.com" })),
+            true,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(sent.lock().expect("sent mail").is_empty());
+    assert!(
+        missing["data"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("on its way")
+    );
+
+    let (status, _, _) = send(
+        &app,
+        call(
+            "POST",
+            "/api/v1/auth/reset-password",
+            None,
+            Some(json!({ "token": token, "password": "a-different-password" })),
+            true,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, _, cookie) = send(
+        &app,
+        call(
+            "POST",
+            "/api/v1/auth/login",
+            None,
+            Some(json!({ "email": email, "password": "a-different-password" })),
+            true,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(cookie.is_some());
+    let (status, _, _) = send(
+        &app,
+        call(
+            "POST",
+            "/api/v1/auth/login",
+            None,
+            Some(json!({ "email": email, "password": "long-enough-password" })),
+            true,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    let (status, _, _) = send(
+        &app,
+        call(
+            "POST",
+            "/api/v1/auth/reset-password",
+            None,
+            Some(json!({ "token": token, "password": "yet-another-password" })),
+            true,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+
+    sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(user_id)
+        .execute(&pool)
+        .await
+        .expect("delete user");
+}
+
+async fn capture_mail(sent: Arc<Mutex<Vec<String>>>) -> String {
+    let app = Router::new()
+        .route("/emails", post(store_mail))
+        .with_state(sent);
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("listener");
+    let address = listener.local_addr().expect("address");
+    tokio::spawn(async move {
+        axum::serve(listener, app).await.expect("mock resend");
+    });
+    format!("http://{address}")
+}
+
+async fn store_mail(
+    State(sent): State<Arc<Mutex<Vec<String>>>>,
+    body: Bytes,
+) -> Json<serde_json::Value> {
+    sent.lock()
+        .expect("sent mail")
+        .push(String::from_utf8_lossy(&body).into_owned());
+    Json(json!({ "id": "email_reset_1" }))
 }

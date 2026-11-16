@@ -60,7 +60,11 @@ fn optional<T>(
     value: Option<String>,
     parse: impl FnOnce(&str) -> Result<T, AppError>,
 ) -> Result<Option<T>, AppError> {
-    match value.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+    match value
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
         Some(value) => Ok(Some(parse(value)?)),
         None => Ok(None),
     }
