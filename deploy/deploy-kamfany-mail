@@ -85,7 +85,8 @@ if [ ! -f dist/index.html ]; then
 fi
 echo "publishing the desk to $site"
 mkdir -p "$site"
-find "$site" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+# aaPanel marks .user.ini immutable. Leave it in place.
+find "$site" -mindepth 1 -maxdepth 1 ! -name '.user.ini' -exec rm -rf {} +
 cp -a dist/. "$site/"
 
 echo "applying migrations"
