@@ -19,6 +19,7 @@ const blank = {
 describe("search params", () => {
   it("keeps an empty desk search off the server", () => {
     expect(searchIsActive(blank)).toBe(false);
+    expect(searchIsActive({ ...blank, mailboxId: "box" })).toBe(false);
   });
 
   it("sends the filled fields", () => {

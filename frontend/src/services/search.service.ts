@@ -53,7 +53,9 @@ export function searchParams(input: MailSearchInput): URLSearchParams {
 }
 
 export function searchIsActive(input: MailSearchInput): boolean {
-  return [...searchParams(input).keys()].length > 0;
+  const params = searchParams(input);
+  params.delete("mailbox_id");
+  return [...params.keys()].length > 0;
 }
 
 export async function searchMessages(input: MailSearchInput): Promise<SearchPage> {
