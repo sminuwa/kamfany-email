@@ -1,10 +1,11 @@
 #!/bin/sh
-# Pull origin/main, rebuild the API, apply pending migrations, and restart it.
-# Desk files in the aaPanel site directory are left as they are.
+# Pull origin/main, rebuild the API and the desk, apply pending migrations, and restart.
 set -eu
 
 root=/opt/kamfany-mail
 backend=$root/backend
+frontend=$root/frontend
+site=/www/wwwroot/mail.kamfany.com
 env_file=/etc/kamfany-mail.env
 branch=main
 remote=origin
@@ -20,7 +21,7 @@ if [ -f /root/.cargo/env ]; then
   . /root/.cargo/env
 fi
 
-for cmd in git cargo curl; do
+for cmd in git cargo curl npm; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     echo "$cmd is not on PATH" >&2
     exit 1
@@ -54,6 +55,11 @@ if [ "$current" != "$branch" ]; then
   exit 1
 fi
 
+if ! git diff --quiet -- frontend/package-lock.json; then
+  echo "restoring frontend/package-lock.json"
+  git restore -- frontend/package-lock.json
+fi
+
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
   echo "tracked files differ from the last commit; deploy stopped" >&2
   git status --short --untracked-files=no >&2
@@ -69,7 +75,21 @@ echo "building the release binary"
 cd "$backend"
 cargo build --release
 
+echo "building the desk"
+cd "$frontend"
+npm ci
+npm run build
+if [ ! -f dist/index.html ]; then
+  echo "frontend build did not produce dist/index.html" >&2
+  exit 1
+fi
+echo "publishing the desk to $site"
+mkdir -p "$site"
+find "$site" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+cp -a dist/. "$site/"
+
 echo "applying migrations"
+cd "$backend"
 set -a
 # shellcheck disable=SC1090
 . "$env_file"

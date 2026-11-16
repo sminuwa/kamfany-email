@@ -161,7 +161,7 @@ Receiving mail still needs `RESEND_WEBHOOK_SECRET`, receiving enabled on a domai
 
 A file stays `pending` until `CLAMAV_ADDRESS` points at clamd. A rejected file is not sent. If the scanner fails while receiving mail, the message is stored and the file is marked `failed`.
 
-## 9. Update the API
+## 9. Update the site
 
 After the first checkout is on the server, install the update command once:
 
@@ -178,4 +178,4 @@ Later updates are:
 sudo deploy-kamfany-mail
 ```
 
-That command fast-forwards `/opt/kamfany-mail` to `origin/main`, runs `cargo build --release`, runs `kamfany-mail migrate`, and restarts the Supervisor program. Migrate applies only migrations that are not already recorded. A tracked local edit stops the command before the pull. The desk files in the aaPanel site directory are left as they are.
+That command fast-forwards `/opt/kamfany-mail` to `origin/main`, rebuilds the API, runs `kamfany-mail migrate`, rebuilds the desk, and copies `frontend/dist` into `/www/wwwroot/mail.kamfany.com`. It then restarts the Supervisor program. Migrate applies only migrations that are not already recorded. A tracked local edit stops the command before the pull. A lockfile rewritten by an earlier `npm install` is restored to the committed copy.

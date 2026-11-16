@@ -2,7 +2,7 @@
 
 These files are the deploy shape for `mail.kamfany.com`. They are not installed by the app, and they do not change DNS or MX. The aaPanel steps are in [docs/INSTALL.md](../docs/INSTALL.md). On that panel, keep the API on a localhost port the other Rust application is not using.
 
-`deploy/deploy-kamfany-mail` is the server update command. Install it as `/usr/local/bin/deploy-kamfany-mail`, then run `sudo deploy-kamfany-mail`. It fast-forwards `main`, rebuilds the release binary, applies pending migrations, and restarts the Supervisor program.
+`deploy/deploy-kamfany-mail` is the server update command. Install it as `/usr/local/bin/deploy-kamfany-mail`, then run `sudo deploy-kamfany-mail`. It fast-forwards `main`, rebuilds the release binary, applies pending migrations, publishes `frontend/dist` to the site directory, and restarts the Supervisor program.
 
 ## API
 
