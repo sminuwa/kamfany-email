@@ -1,0 +1,75 @@
+html {
+  background: var(--km-canvas);
+  color: var(--km-ink);
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--km-canvas);
+  color: var(--km-ink);
+  font-family: var(--font-sans), "Avenir Next", "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--km-brass);
+  color: var(--km-brass-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--km-brass);
+  outline-offset: 2px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--km-line) transparent;
+}
+
+input::placeholder {
+  color: var(--km-muted);
+  opacity: 1;
+}
+
+.shadow-panel {
+  box-shadow: var(--km-shadow);
+}
+
+.print-sheet {
+  display: none;
+}
+
+@media print {
+  .mail-shell,
+  .mail-column,
+  .desk-grid,
+  .reading-pane {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+
+  .desk-chrome {
+    display: none !important;
+  }
+
+  .print-sheet {
+    display: block !important;
+    color: #10211f;
+    background: white;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0e3b3a" />
+    <meta
+      name="description"
+      content="KAMFANY Mail is the company mailbox for IT KAMFANY LIMITED."
+    />
+    <title>KAMFANY Mail</title>
+    <script>
+      (function () {
+        try {
+          var pref = localStorage.getItem("kamfany-mail.theme") || "system";
+          var dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          var theme = pref === "dark" || (pref === "system" && dark) ? "dark" : "light";
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.style.colorScheme = theme;
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute("content", theme === "dark" ? "#082221" : "#0e3b3a");
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

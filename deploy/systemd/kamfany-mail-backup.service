@@ -1,0 +1,10 @@
+[Unit]
+Description=KAMFANY Mail database backup
+
+[Service]
+Type=oneshot
+User=kamfany
+Group=kamfany
+EnvironmentFile=/etc/kamfany-mail.env
+Environment=BACKUP_DIR=/var/backups/kamfany-mail
+ExecStart=/opt/kamfany-mail/deploy/backup-database.sh

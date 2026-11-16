@@ -1,0 +1,13 @@
+<template>
+  <svg viewBox="0 0 32 32" aria-hidden="true" class="block">
+    <rect width="32" height="32" rx="8" fill="#F2C14E" />
+    <path
+      d="M10.5 7.5v17M10.5 16.1 22 8M10.5 16.1 22 24.2"
+      fill="none"
+      stroke="#1A1408"
+      stroke-width="2.4"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </svg>
+</template>

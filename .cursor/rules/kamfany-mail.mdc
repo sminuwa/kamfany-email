@@ -1,0 +1,15 @@
+---
+description: Binding product and engineering rules for KAMFANY Mail
+alwaysApply: true
+---
+
+Follow `docs/KAMFANY_MAIL_IMPLEMENTATION_GUIDE.md` on every task.
+
+- Build only the current phase in `docs/PHASE_STATUS.md`. Stop and wait for approval before the next phase.
+- Vue 3 Composition API with `<script setup lang="ts">`. Keep business logic out of components.
+- Idiomatic async Rust. Modular Axum services. Migrations for schema changes. Transactions for multi-record writes.
+- The browser talks only to the Rust API. Isolate provider code in `backend/src/providers`. Never expose or hardcode Resend credentials.
+- Do not invent Resend capabilities. If a feature needs an unsupported provider API, stop and explain the limit before coding it.
+- Do not fake production behavior. Do not add a dependency a phase does not use.
+- Keep structured logs, explicit errors, and tests for critical behavior.
+- Keep the frontend and backend independently deployable. Preserve existing API contracts when they change.

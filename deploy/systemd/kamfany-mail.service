@@ -1,0 +1,17 @@
+[Unit]
+Description=KAMFANY Mail API
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=kamfany
+Group=kamfany
+WorkingDirectory=/opt/kamfany-mail/backend
+EnvironmentFile=/etc/kamfany-mail.env
+ExecStart=/opt/kamfany-mail/backend/target/release/kamfany-mail serve
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
