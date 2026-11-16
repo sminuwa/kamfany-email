@@ -1,6 +1,6 @@
 # Production units
 
-These files are the deploy shape for `mail.kamfany.com`. They are not installed by the app, and they do not change DNS or MX.
+These files are the deploy shape for `mail.kamfany.com`. They are not installed by the app, and they do not change DNS or MX. The aaPanel steps are in [docs/INSTALL.md](../docs/INSTALL.md). On that panel, keep the API on a localhost port the other Rust application is not using.
 
 ## API
 

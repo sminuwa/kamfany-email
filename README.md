@@ -4,7 +4,7 @@ Company webmail for IT KAMFANY LIMITED. The desk will live at `mail.kamfany.com`
 
 The browser talks only to the Rust API. The API will talk to Resend. Provider credentials never go to the frontend.
 
-The master brief is [docs/KAMFANY_MAIL_IMPLEMENTATION_GUIDE.md](docs/KAMFANY_MAIL_IMPLEMENTATION_GUIDE.md). Architecture and the current phase are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/PHASE_STATUS.md](docs/PHASE_STATUS.md).
+The master brief is [docs/KAMFANY_MAIL_IMPLEMENTATION_GUIDE.md](docs/KAMFANY_MAIL_IMPLEMENTATION_GUIDE.md). Architecture and the current phase are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/PHASE_STATUS.md](docs/PHASE_STATUS.md). Hosting on an aaPanel VPS is in [docs/INSTALL.md](docs/INSTALL.md).
 
 ## Layout
 
