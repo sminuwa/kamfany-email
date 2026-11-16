@@ -160,3 +160,22 @@ These addresses should respond:
 Receiving mail still needs `RESEND_WEBHOOK_SECRET`, receiving enabled on a domain, and that domain's MX pointed at Resend. Leave the `kamfany.com` MX records unchanged until that is an explicit decision.
 
 A file stays `pending` until `CLAMAV_ADDRESS` points at clamd. A rejected file is not sent. If the scanner fails while receiving mail, the message is stored and the file is marked `failed`.
+
+## 9. Update the API
+
+After the first checkout is on the server, install the update command once:
+
+```bash
+cd /opt/kamfany-mail
+git fetch origin main
+git merge --ff-only origin/main
+install -m 755 deploy/deploy-kamfany-mail /usr/local/bin/deploy-kamfany-mail
+```
+
+Later updates are:
+
+```bash
+sudo deploy-kamfany-mail
+```
+
+That command fast-forwards `/opt/kamfany-mail` to `origin/main`, runs `cargo build --release`, runs `kamfany-mail migrate`, and restarts the Supervisor program. Migrate applies only migrations that are not already recorded. A tracked local edit stops the command before the pull. The desk files in the aaPanel site directory are left as they are.

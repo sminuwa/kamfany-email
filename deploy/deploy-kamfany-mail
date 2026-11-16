@@ -1,0 +1,104 @@
+#!/bin/sh
+# Pull origin/main, rebuild the API, apply pending migrations, and restart it.
+# Desk files in the aaPanel site directory are left as they are.
+set -eu
+
+root=/opt/kamfany-mail
+backend=$root/backend
+env_file=/etc/kamfany-mail.env
+branch=main
+remote=origin
+
+if [ "$(id -u)" -ne 0 ]; then
+  echo "run as root: sudo deploy-kamfany-mail" >&2
+  exit 1
+fi
+
+if [ -f /root/.cargo/env ]; then
+  # cargo is installed for root. sudo does not load that profile.
+  # shellcheck disable=SC1091
+  . /root/.cargo/env
+fi
+
+for cmd in git cargo curl; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    echo "$cmd is not on PATH" >&2
+    exit 1
+  fi
+done
+
+if [ ! -f "$env_file" ]; then
+  echo "missing $env_file" >&2
+  exit 1
+fi
+
+if [ -x /usr/bin/supervisorctl ]; then
+  supervisorctl=/usr/bin/supervisorctl
+elif [ -x /www/server/panel/pyenv/bin/supervisorctl ]; then
+  supervisorctl=/www/server/panel/pyenv/bin/supervisorctl
+else
+  echo "supervisorctl is not installed" >&2
+  exit 1
+fi
+
+cd "$root"
+
+if [ ! -d .git ]; then
+  echo "$root is not a git checkout" >&2
+  exit 1
+fi
+
+current=$(git rev-parse --abbrev-ref HEAD)
+if [ "$current" != "$branch" ]; then
+  echo "checkout is $current; this command updates $branch" >&2
+  exit 1
+fi
+
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+  echo "tracked files differ from the last commit; deploy stopped" >&2
+  git status --short --untracked-files=no >&2
+  exit 1
+fi
+
+echo "fetching $remote $branch"
+git fetch "$remote" "$branch"
+echo "merging $remote/$branch"
+git merge --ff-only "$remote/$branch"
+
+echo "building the release binary"
+cd "$backend"
+cargo build --release
+
+echo "applying migrations"
+set -a
+# shellcheck disable=SC1090
+. "$env_file"
+set +a
+./target/release/kamfany-mail migrate
+
+echo "restarting kamfany-mail"
+if ! PYTHONWARNINGS=ignore "$supervisorctl" restart 'kamfany-mail:*'; then
+  PYTHONWARNINGS=ignore "$supervisorctl" restart kamfany-mail
+fi
+
+port=$(awk -F= '/^APP_PORT=/{gsub(/[[:space:]]/, "", $2); print $2; exit}' "$env_file")
+if [ -z "${port:-}" ]; then
+  port=8090
+fi
+
+i=0
+while [ "$i" -lt 15 ]; do
+  if body=$(curl -fsS "http://127.0.0.1:${port}/api/v1/health"); then
+    echo "health $body"
+    rev=$(git -C "$root" rev-parse --short HEAD)
+    install -m 755 "$root/deploy/deploy-kamfany-mail" /usr/local/bin/deploy-kamfany-mail
+    echo "deployed $rev"
+    exit 0
+  fi
+  i=$((i + 1))
+  sleep 1
+done
+
+echo "health check failed on 127.0.0.1:${port}" >&2
+PYTHONWARNINGS=ignore "$supervisorctl" status kamfany-mail >&2 || true
+exit 1
