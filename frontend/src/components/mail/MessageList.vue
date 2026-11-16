@@ -202,7 +202,7 @@ watch(activeLabel, (label) => {
 </script>
 
 <template>
-  <section class="desk-chrome flex h-full min-h-0 flex-col border-line bg-surface" :aria-label="folder.label">
+  <section class="desk-chrome flex h-full min-h-0 flex-col" :aria-label="folder.label">
     <header class="border-b border-line px-4 py-3">
       <div class="flex min-h-10 items-center gap-3">
         <input
@@ -214,17 +214,19 @@ watch(activeLabel, (label) => {
           aria-label="Select all"
           @change="onSelectAll"
         />
-        <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-2">
-            <h1 class="truncate text-2xl font-semibold tracking-[-0.03em]">{{ heading }}</h1>
-            <span
-              v-if="!mail.searchActive && !narrowed && unreadCount > 0"
-              class="rounded-full bg-brass px-2 py-0.5 text-[11px] font-semibold tabular-nums text-brass-ink"
-            >
-              {{ unreadCount }} unread
-            </span>
-          </div>
-          <p class="text-xs text-muted" aria-live="polite">{{ summary }}</p>
+        <div class="flex min-w-0 flex-1 items-center gap-2">
+          <h1 class="truncate text-2xl font-semibold tracking-[-0.03em]">{{ heading }}</h1>
+          <p
+            class="text-sm text-muted"
+            :class="mail.searchNote ? 'min-w-0 truncate' : 'shrink-0'"
+            aria-live="polite"
+          >{{ summary }}</p>
+          <span
+            v-if="!mail.searchActive && !narrowed && unreadCount > 0"
+            class="shrink-0 rounded-full bg-brass px-2 py-0.5 text-[11px] font-semibold tabular-nums text-brass-ink"
+          >
+            {{ unreadCount }} unread
+          </span>
         </div>
         <button
           v-if="activeLabel"

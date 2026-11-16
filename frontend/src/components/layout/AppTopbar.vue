@@ -3,7 +3,6 @@ import {
   Bell,
   CircleHelp,
   Menu,
-  PanelLeft,
   RefreshCw,
   Search,
   SlidersHorizontal,
@@ -97,13 +96,31 @@ function navigationLabel() {
   <header class="desk-chrome flex h-16 shrink-0 items-center gap-1.5 px-3 min-[960px]:gap-2">
     <button
       type="button"
-      class="grid size-9 shrink-0 place-items-center rounded-control text-ink hover:bg-surface min-[960px]:size-10"
+      class="km-rail-toggle grid size-9 shrink-0 place-items-center rounded-control text-ink min-[960px]:size-10"
       :aria-expanded="isDesktop ? !ui.collapsed : ui.mobileOpen"
       :aria-label="navigationLabel()"
       @click="toggleNavigation"
     >
       <Menu v-if="!isDesktop" class="size-4" />
-      <PanelLeft v-else class="size-4" />
+      <svg v-else viewBox="0 0 24 24" class="size-5" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="16" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.6" />
+        <path
+          class="km-rail-mark"
+          :d="
+            ui.collapsed
+              ? 'M3 7.5A3.5 3.5 0 0 1 6.5 4H7.4v16H6.5A3.5 3.5 0 0 1 3 16.5V7.5Z'
+              : 'M3 7.5A3.5 3.5 0 0 1 6.5 4H10v16H6.5A3.5 3.5 0 0 1 3 16.5V7.5Z'
+          "
+        />
+        <path
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          :d="ui.collapsed ? 'M13.5 9.2 16.4 12l-2.9 2.8' : 'M16.4 9.2 13.5 12l2.9 2.8'"
+        />
+      </svg>
     </button>
 
     <form class="relative min-w-0 flex-1" role="search" @submit.prevent>

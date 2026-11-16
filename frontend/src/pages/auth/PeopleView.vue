@@ -3,8 +3,9 @@ import { ArrowUpDown, ListFilter, Plus, Shield, ShieldCheck, User, Users } from 
 import { computed, onMounted, ref, watch } from "vue";
 import CreateAccountDialog from "../../components/account/CreateAccountDialog.vue";
 import ListPager from "../../components/common/ListPager.vue";
-import { type PersonAccount } from "../../services/auth.service";
+import { updatePersonRole, type PersonAccount } from "../../services/auth.service";
 import { errorMessage } from "../../services/http";
+import { updateMailbox } from "../../services/mailbox.service";
 import { useAuthStore } from "../../stores/auth";
 import { PAGE_SIZE, pageCount, pageSlice } from "../../utils/pager";
 import { selectPeople, type PersonRole, type PersonSort } from "../../utils/people-search";
@@ -45,7 +46,7 @@ onMounted(async () => {
 });
 
 async function onCreated(email: string) {
-  notice.value = "Account created.";
+  notice.value = "Mailbox registered.";
   try {
     people.value = await auth.people();
     const index = matched.value.findIndex((person) => person.email.toLowerCase() === email.toLowerCase());
@@ -68,6 +69,37 @@ function roleLabel(name: string): string {
   return name;
 }
 
+function canEditRole(person: PersonAccount): boolean {
+  return Boolean(auth.user) && person.id !== auth.user?.id && !person.roles.includes("owner");
+}
+
+async function changeRole(person: PersonAccount, role: string) {
+  if (role !== "member" && role !== "administrator") {
+    return;
+  }
+  if (person.roles.includes(role)) {
+    return;
+  }
+  try {
+    const next = await updatePersonRole(person.id, role);
+    people.value = people.value.map((item) => (item.id === next.id ? next : item));
+    notice.value = "Role changed.";
+  } catch (error) {
+    notice.value = errorMessage(error);
+  }
+}
+
+async function toggleMailbox(person: PersonAccount) {
+  try {
+    const next = await updateMailbox(person.mailboxId, { isEnabled: !person.mailboxEnabled });
+    people.value = people.value.map((item) =>
+      item.id === person.id ? { ...item, mailboxEnabled: next.isEnabled } : item,
+    );
+  } catch (error) {
+    notice.value = errorMessage(error);
+  }
+}
+
 function roleTone(name: string): string {
   if (name === "owner") {
     return "mint";
@@ -79,7 +111,7 @@ function roleTone(name: string): string {
 }
 
 const stats = computed(() => [
-  { label: "Total accounts", value: String(people.value.length), icon: Users, tone: "mint" },
+  { label: "Mailboxes", value: String(people.value.length), icon: Users, tone: "mint" },
   { label: "Owners", value: String(ownerCount.value), icon: Shield, tone: "mint" },
   { label: "Administrators", value: String(administratorCount.value), icon: ShieldCheck, tone: "sand" },
   { label: "Members", value: String(memberCount.value), icon: User, tone: "quiet" },
@@ -90,22 +122,22 @@ const stats = computed(() => [
   <section>
     <div class="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 class="text-[2rem] font-semibold leading-tight tracking-[-0.03em]">People</h1>
+        <h1 class="text-[2rem] font-semibold leading-tight tracking-[-0.03em]">Mailboxes</h1>
         <p class="mt-2 max-w-[62ch] text-sm leading-relaxed text-muted">
-          Accounts that can sign in to this desk. An owner or an administrator can add a member or an administrator.
-          The owner role stays with the first account.
+          Each mailbox belongs to one person, and the address is how they sign in. An owner or an administrator
+          registers it. A member opens only their own mailbox.
         </p>
       </div>
       <button v-if="auth.canManageUsers" type="button" class="km-action" @click="createOpen = true">
         <Plus class="size-4" />
-        Create an account
+        Register a mailbox
       </button>
     </div>
 
     <CreateAccountDialog v-model="createOpen" @created="onCreated" />
 
     <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <article v-for="stat in stats" :key="stat.label" class="rounded-panel border border-line bg-surface px-4 py-4">
+      <article v-for="stat in stats" :key="stat.label" class="km-card px-4 py-4">
         <div class="flex items-center gap-3">
           <span class="km-badge" :class="stat.tone">
             <component :is="stat.icon" class="size-4" />
@@ -120,8 +152,8 @@ const stats = computed(() => [
 
     <div class="mt-4 grid gap-2 min-[900px]:grid-cols-[minmax(0,1fr)_11.5rem_11.5rem]">
       <label class="text-sm">
-        <span class="sr-only">Search people</span>
-        <input v-model="query" type="search" placeholder="Search people (email or name)" :class="field" />
+        <span class="sr-only">Search mailboxes</span>
+        <input v-model="query" type="search" placeholder="Search mailboxes (address or name)" :class="field" />
       </label>
       <label class="relative block">
         <ListFilter class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
@@ -147,13 +179,15 @@ const stats = computed(() => [
       {{ notice }}
     </p>
 
-    <div v-if="visible.length" class="mt-4 overflow-x-auto rounded-panel border border-line bg-surface">
+    <div v-if="visible.length" class="mt-4 overflow-x-auto km-card">
       <table class="km-table">
         <thead>
           <tr>
             <th>Email</th>
             <th>Display name</th>
             <th>Role</th>
+            <th>Status</th>
+            <th>Receiving</th>
           </tr>
         </thead>
         <tbody>
@@ -166,20 +200,50 @@ const stats = computed(() => [
             </td>
             <td class="text-muted">{{ person.displayName }}</td>
             <td>
-              <span v-if="person.roles.length" class="flex flex-wrap gap-1">
-                <span v-for="name in person.roles" :key="name" class="km-pill" :class="roleTone(name)">
-                  <span class="size-1.5 rounded-full bg-current" />
-                  {{ roleLabel(name) }}
-                </span>
+              <select
+                v-if="canEditRole(person)"
+                class="h-8 rounded-control border border-line bg-canvas px-2 text-sm"
+                :value="person.roles[0] ?? 'member'"
+                aria-label="Role"
+                @change="changeRole(person, ($event.target as HTMLSelectElement).value)"
+              >
+                <option value="member">Member</option>
+                <option value="administrator">Administrator</option>
+              </select>
+              <span v-else-if="person.roles.length" class="km-pill" :class="roleTone(person.roles[0])">
+                <span class="size-1.5 rounded-full bg-current" />
+                {{ roleLabel(person.roles[0]) }}
               </span>
               <span v-else class="text-muted">No role</span>
+            </td>
+            <td>
+              <span class="flex items-center gap-2">
+                <span class="km-pill" :class="person.mailboxEnabled ? 'mint' : 'rose'">
+                  <span class="size-1.5 rounded-full bg-current" />
+                  {{ person.mailboxEnabled ? "Enabled" : "Disabled" }}
+                </span>
+                <button
+                  v-if="auth.canManageMailboxes"
+                  type="button"
+                  class="km-mini"
+                  :class="person.mailboxEnabled ? 'line' : 'mint'"
+                  @click="toggleMailbox(person)"
+                >
+                  {{ person.mailboxEnabled ? "Disable" : "Enable" }}
+                </button>
+              </span>
+            </td>
+            <td>
+              <span class="km-pill" :class="person.receivingVerified ? 'mint' : 'quiet'">
+                {{ person.receivingVerified ? "Verified" : "Not verified" }}
+              </span>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
     <p v-else class="mt-6 text-sm text-muted">
-      {{ query.trim() || role !== "all" ? "Nothing matches that search." : "No account is on this desk." }}
+      {{ query.trim() || role !== "all" ? "Nothing matches that search." : "No mailbox is on this desk." }}
     </p>
     <ListPager v-model="page" :pages="pages" :total="matched.length" />
   </section>

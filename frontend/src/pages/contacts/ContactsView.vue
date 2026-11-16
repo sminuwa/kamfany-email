@@ -38,7 +38,7 @@ function onAvatar(event: Event) {
 
 <template>
   <div class="grid h-full min-h-0 grid-cols-1 gap-3 min-[960px]:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.1fr)]">
-    <section class="desk-chrome flex h-full min-h-0 flex-col overflow-hidden rounded-panel bg-surface shadow-panel" aria-label="Contacts">
+    <section class="km-card desk-chrome flex h-full min-h-0 flex-col overflow-hidden" aria-label="Contacts">
       <header class="border-b border-line px-4 py-3">
         <h1 class="text-2xl font-semibold tracking-[-0.03em]">Contacts</h1>
         <p class="text-xs text-muted">{{ contacts.people.length === 1 ? "1 person" : `${contacts.people.length} people` }}</p>
@@ -79,7 +79,7 @@ function onAvatar(event: Event) {
         </li>
       </ul>
     </section>
-    <form class="flex h-full min-h-0 flex-col overflow-y-auto rounded-panel bg-surface px-5 py-5 shadow-panel" @submit.prevent="contacts.save()">
+    <form class="km-card flex h-full min-h-0 flex-col overflow-y-auto px-5 py-5" @submit.prevent="contacts.save()">
       <h2 class="text-2xl font-semibold tracking-[-0.03em]">{{ contacts.selectedId ? "Edit contact" : "New contact" }}</h2>
       <p class="mt-1 max-w-[48ch] text-sm leading-relaxed text-muted">
         Contacts belong to you. CSV columns are name, email, phone, company, and notes.

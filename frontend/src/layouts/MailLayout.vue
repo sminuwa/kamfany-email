@@ -1,40 +1,46 @@
 <script setup lang="ts">
 import { onKeyStroke } from "@vueuse/core";
-import { onMounted, watch } from "vue";
+import { computed, watch } from "vue";
 import { RouterView, useRoute } from "vue-router";
+import AccountFrame from "../components/layout/AccountFrame.vue";
 import AppSidebar from "../components/layout/AppSidebar.vue";
 import AppTopbar from "../components/layout/AppTopbar.vue";
-import { useDeskSearch } from "../composables/useDeskSearch";
-import { useLiveDesk } from "../composables/useLiveDesk";
+import AuthGate from "../components/layout/AuthGate.vue";
+import DeskRuntime from "../components/layout/DeskRuntime.vue";
 import { useRailCollapsed } from "../composables/useRail";
+import { useAuthStore } from "../stores/auth";
 import { useMailboxStore } from "../stores/mailboxes";
 import { useMailStore } from "../stores/messages";
-import { useServiceStore } from "../stores/service";
 import { useUiStore } from "../stores/ui";
 
 const ui = useUiStore();
-const service = useServiceStore();
+const auth = useAuthStore();
 const boxes = useMailboxStore();
 const mail = useMailStore();
 const route = useRoute();
 const { railCollapsed } = useRailCollapsed();
-useDeskSearch();
-useLiveDesk();
+const signedIn = computed(() => auth.status === "signed_in");
+const accountPage = computed(() => route.path.startsWith("/account"));
 
 watch(
   () =>
     [
+      auth.status,
       boxes.active?.id ?? "",
+      route.path,
       typeof route.meta.folder === "string" ? route.meta.folder : "",
       typeof route.params.folderId === "string" ? route.params.folderId : "",
     ].join("|"),
   () => {
+    if (auth.status !== "signed_in") {
+      return;
+    }
     const mailbox = boxes.active;
     if (!mailbox?.canRead) {
       mail.clearDesk();
       return;
     }
-    if (route.name === "contacts") {
+    if (route.path.startsWith("/account") || route.name === "contacts") {
       void mail.ensureFolders({
         id: mailbox.id,
         address: mailbox.address,
@@ -53,10 +59,6 @@ watch(
   { immediate: true },
 );
 
-onMounted(() => {
-  void service.refresh();
-});
-
 watch(
   () => route.path,
   () => {
@@ -74,12 +76,15 @@ onKeyStroke("k", (event) => {
 </script>
 
 <template>
-  <div
+  <AuthGate v-if="!signedIn">
+    <RouterView />
+  </AuthGate>
+  <div v-else
     class="mail-shell h-dvh overflow-hidden bg-canvas text-ink min-[960px]:grid min-[960px]:transition-[grid-template-columns] min-[960px]:duration-200 min-[960px]:ease-out"
     :class="
       railCollapsed
-        ? 'min-[960px]:grid-cols-[72px_minmax(0,1fr)]'
-        : 'min-[960px]:grid-cols-[248px_minmax(0,1fr)]'
+        ? 'min-[960px]:grid-cols-[72px_minmax(0,1fr)] min-[960px]:grid-rows-[minmax(0,1fr)]'
+        : 'min-[960px]:grid-cols-[248px_minmax(0,1fr)] min-[960px]:grid-rows-[minmax(0,1fr)]'
     "
   >
     <a
@@ -95,11 +100,15 @@ onKeyStroke("k", (event) => {
       aria-label="Close menu"
       @click="ui.closeMobile()"
     />
+    <DeskRuntime />
     <AppSidebar />
     <div class="mail-column flex h-full min-h-0 min-w-0 flex-col bg-canvas">
       <AppTopbar />
-      <main id="mail-desk" class="min-h-0 flex-1 px-3 pb-3">
-        <RouterView />
+      <main id="mail-desk" class="min-h-0 flex-1" :class="accountPage ? '' : 'px-3 pb-3'">
+        <AccountFrame v-if="accountPage">
+          <RouterView />
+        </AccountFrame>
+        <RouterView v-else />
       </main>
     </div>
   </div>

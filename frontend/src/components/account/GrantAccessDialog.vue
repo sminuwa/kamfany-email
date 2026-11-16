@@ -94,7 +94,7 @@ async function submit() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="grant-access-title"
-        class="w-full max-w-md rounded-panel border border-line bg-surface p-6 text-ink shadow-panel"
+        class="km-card w-full max-w-md p-6 text-ink"
         @keydown="trapTab"
       >
         <div class="flex items-start justify-between gap-4">

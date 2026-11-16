@@ -3,7 +3,7 @@ import {
   AlarmClock,
   Archive,
   BookUser,
-  ChevronDown,
+  LogOut,
   FilePen,
   Inbox,
   Mailbox,
@@ -23,6 +23,7 @@ import { useMailStore } from "../../stores/messages";
 import { useUiStore } from "../../stores/ui";
 import type { LabelTone } from "../../types/mail";
 import { systemFolders } from "../../utils/folders";
+import AccountNav from "./AccountNav.vue";
 import BrandMark from "../common/BrandMark.vue";
 import MenuPanel from "../common/MenuPanel.vue";
 
@@ -33,7 +34,7 @@ const boxes = useMailboxStore();
 const route = useRoute();
 const router = useRouter();
 const { railCollapsed } = useRailCollapsed();
-const mailboxOpen = ref(false);
+const accountOpen = ref(false);
 const addingFolder = ref(false);
 const addingLabel = ref(false);
 const folderName = ref("");
@@ -88,13 +89,10 @@ function chooseLabel(id: string) {
   ui.closeMobile();
 }
 
-function switchMailbox(id: string) {
-  boxes.select(id);
-  mailboxOpen.value = false;
-  ui.closeMobile();
-  const query = { ...route.query };
-  delete query.m;
-  void router.replace({ path: route.path, query });
+async function leaveDesk() {
+  accountOpen.value = false;
+  await auth.logout();
+  await router.push("/account");
 }
 
 const icons: Record<string, Component> = {
@@ -111,7 +109,7 @@ const icons: Record<string, Component> = {
 
 <template>
   <aside
-    class="desk-chrome fixed inset-y-0 left-0 z-30 flex w-[248px] flex-col bg-lagoon text-lagoon-ink transition-transform duration-200 ease-out min-[960px]:static min-[960px]:z-20 min-[960px]:w-auto min-[960px]:translate-x-0"
+    class="desk-chrome fixed inset-y-0 left-0 z-30 flex h-dvh w-[248px] min-h-0 flex-col bg-lagoon text-lagoon-ink transition-transform duration-200 ease-out min-[960px]:static min-[960px]:z-20 min-[960px]:h-full min-[960px]:w-auto min-[960px]:translate-x-0"
     :class="ui.mobileOpen ? 'translate-x-0' : '-translate-x-full'"
   >
     <div class="px-3 pb-2 pt-4">
@@ -125,44 +123,14 @@ const icons: Record<string, Component> = {
         </p>
       </div>
 
-      <MenuPanel v-model="mailboxOpen" align="start" label="Mailboxes" class="mt-4">
-        <template #trigger="{ toggle, open }">
-          <button
-            type="button"
-            class="flex h-10 w-full items-center gap-2 rounded-control border border-lagoon-line px-2.5 text-left text-sm hover:bg-lagoon-active"
-            :class="railCollapsed ? 'justify-center px-0' : ''"
-            :aria-expanded="open"
-            aria-haspopup="menu"
-            :aria-label="railCollapsed ? 'Mailboxes' : undefined"
-            :title="railCollapsed ? 'Mailboxes' : undefined"
-            @click="toggle"
-          >
-            <Mailbox class="size-4 shrink-0 text-lagoon-muted" />
-            <span v-show="!railCollapsed" class="min-w-0 flex-1 truncate">{{ mailboxLabel }}</span>
-            <ChevronDown v-show="!railCollapsed" class="size-4 shrink-0 text-lagoon-muted" />
-          </button>
-        </template>
-        <p class="px-2.5 py-2 text-sm font-semibold text-ink">{{ mailboxLabel }}</p>
-        <p v-if="boxes.readable.length === 0" class="px-2.5 pb-2 text-sm leading-relaxed text-muted">
-          No mailbox is available to this account.
-        </p>
-        <ul v-else class="max-h-64 overflow-y-auto pb-1">
-          <li v-for="mailbox in boxes.readable" :key="mailbox.id">
-            <button
-              type="button"
-              role="menuitem"
-              class="flex w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left text-sm text-ink hover:bg-canvas"
-              @click="switchMailbox(mailbox.id)"
-            >
-              <span class="min-w-0 flex-1 truncate">{{ mailbox.address }}</span>
-              <span v-if="mailbox.id === boxes.active?.id" class="text-xs text-muted">Current</span>
-            </button>
-          </li>
-        </ul>
-        <p v-if="boxes.active && !boxes.active.isReceivingVerified" class="px-2.5 pb-2 text-sm leading-relaxed text-muted">
-          Receiving is not verified yet.
-        </p>
-      </MenuPanel>
+      <div
+        class="mt-4 flex h-10 items-center gap-2 rounded-control border border-lagoon-line px-2.5 text-sm"
+        :class="railCollapsed ? 'justify-center px-0' : ''"
+        :title="mailboxLabel"
+      >
+        <Mailbox class="size-4 shrink-0 text-lagoon-muted" />
+        <span v-show="!railCollapsed" class="min-w-0 flex-1 truncate">{{ mailboxLabel }}</span>
+      </div>
 
       <button
         type="button"
@@ -302,21 +270,38 @@ const icons: Record<string, Component> = {
         <BookUser class="size-4 shrink-0" :class="route.path === '/contacts' ? 'text-brass' : 'text-lagoon-muted'" />
         <span v-show="!railCollapsed">Contacts</span>
       </RouterLink>
-      <RouterLink
-        to="/account"
-        class="mt-1 flex h-12 items-center gap-3 rounded-full text-lagoon-ink hover:bg-lagoon-active"
-        :class="railCollapsed ? 'justify-center px-0' : 'px-2'"
-        :title="railCollapsed ? signedInName : undefined"
-        @click="ui.closeMobile()"
-      >
-        <span class="grid size-8 shrink-0 place-items-center rounded-full bg-brass text-xs font-semibold text-brass-ink">
-          {{ signedInInitial }}
-        </span>
-        <span v-show="!railCollapsed" class="min-w-0">
-          <span class="block truncate text-sm font-semibold">{{ signedInName }}</span>
-          <span class="block truncate text-xs text-lagoon-muted">{{ auth.user?.email }}</span>
-        </span>
-      </RouterLink>
+      <MenuPanel v-model="accountOpen" align="start" side="up" label="Account" class="mt-1">
+        <template #trigger="{ toggle, open }">
+          <button
+            type="button"
+            class="flex h-12 w-full items-center gap-3 rounded-full text-lagoon-ink hover:bg-lagoon-active"
+            :class="railCollapsed ? 'justify-center px-0' : 'px-2'"
+            :aria-expanded="open"
+            aria-haspopup="menu"
+            :aria-label="railCollapsed ? signedInName : 'Account menu'"
+            :title="railCollapsed ? signedInName : undefined"
+            @click="toggle"
+          >
+            <span class="grid size-8 shrink-0 place-items-center rounded-full bg-brass text-xs font-semibold text-brass-ink">
+              {{ signedInInitial }}
+            </span>
+            <span v-show="!railCollapsed" class="min-w-0 text-left">
+              <span class="block truncate text-sm font-semibold">{{ signedInName }}</span>
+              <span class="block truncate text-xs text-lagoon-muted">{{ auth.user?.email }}</span>
+            </span>
+          </button>
+        </template>
+        <AccountNav @click="accountOpen = false" />
+        <button
+          type="button"
+          role="menuitem"
+          class="mt-1 flex h-9 w-full items-center gap-2 rounded-[8px] px-2.5 text-left text-sm text-ink hover:bg-canvas"
+          @click="leaveDesk"
+        >
+          <LogOut class="size-4 shrink-0 text-muted" />
+          Sign out
+        </button>
+      </MenuPanel>
     </div>
   </aside>
 </template>

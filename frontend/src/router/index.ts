@@ -3,7 +3,6 @@ import AuthLayout from "../layouts/AuthLayout.vue";
 import MailLayout from "../layouts/MailLayout.vue";
 import AccessView from "../pages/auth/AccessView.vue";
 import AuditView from "../pages/auth/AuditView.vue";
-import MailboxesView from "../pages/auth/MailboxesView.vue";
 import PasswordView from "../pages/auth/PasswordView.vue";
 import PeopleView from "../pages/auth/PeopleView.vue";
 import ProviderView from "../pages/auth/ProviderView.vue";
@@ -40,65 +39,57 @@ export const router = createRouter({
           component: ContactsView,
           meta: { title: "Contacts" },
         },
-      ],
-    },
-    {
-      path: "/account",
-      component: AuthLayout,
-      children: [
         {
-          path: "",
+          path: "account",
           name: "account",
           component: AccessView,
           meta: { title: "Account settings" },
         },
         {
-          path: "password",
+          path: "account/password",
           name: "account-password",
           component: PasswordView,
           meta: { title: "Change password" },
         },
         {
-          path: "sessions",
+          path: "account/sessions",
           name: "account-sessions",
           component: SessionsView,
           meta: { title: "Sessions" },
         },
         {
-          path: "mailboxes",
+          path: "account/mailboxes",
           name: "account-mailboxes",
-          component: MailboxesView,
-          meta: { title: "Mailboxes" },
+          component: PeopleView,
+          meta: { title: "Mailboxes", permission: "users.manage" },
         },
         {
-          path: "mailboxes/new",
+          path: "account/mailboxes/new",
           redirect: { name: "account-mailboxes" },
         },
         {
-          path: "mailboxes/access",
-          redirect: (to) => ({ name: "account-mailboxes", query: to.query }),
+          path: "account/mailboxes/access",
+          redirect: { name: "account-mailboxes" },
         },
         {
-          path: "provider",
+          path: "account/provider",
           name: "account-provider",
           component: ProviderView,
           meta: { title: "Email provider", permission: "mailbox.manage" },
         },
         {
-          path: "audit",
+          path: "account/audit",
           name: "account-audit",
           component: AuditView,
           meta: { title: "Audit log", permission: "audit.read" },
         },
         {
-          path: "people",
-          name: "account-people",
-          component: PeopleView,
-          meta: { title: "People", permission: "users.manage" },
+          path: "account/people",
+          redirect: { name: "account-mailboxes" },
         },
         {
-          path: "people/new",
-          redirect: { name: "account-people" },
+          path: "account/people/new",
+          redirect: { name: "account-mailboxes" },
         },
       ],
     },
@@ -130,9 +121,7 @@ router.beforeEach(async (to) => {
   if (permission && !auth.user?.permissions.includes(permission)) {
     return { path: "/account" };
   }
-  if (!to.path.startsWith("/account")) {
-    await useMailboxStore().ensure();
-  }
+  await useMailboxStore().ensure();
   return true;
 });
 

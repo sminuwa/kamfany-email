@@ -43,7 +43,7 @@ async function check() {
     <p v-if="notice" class="mt-4 rounded-control bg-surface px-3 py-2 text-sm leading-relaxed" role="status">
       {{ notice }}
     </p>
-    <div v-if="provider" class="mt-6 rounded-panel border border-line bg-surface px-4">
+    <div v-if="provider" class="km-card mt-6 px-4">
       <dl class="divide-y divide-line">
         <div class="grid gap-1 py-3 sm:grid-cols-[14rem_minmax(0,1fr)] sm:items-baseline">
           <dt class="text-sm text-muted">API key</dt>

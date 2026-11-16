@@ -72,6 +72,26 @@ async fn create_user(pool: &PgPool, email: &str, password: &str, role: Uuid) -> 
         .execute(pool)
         .await
         .expect("preferences");
+    let mailbox_id = sqlx::query_scalar::<_, Uuid>(
+        "INSERT INTO mailboxes (address, display_name, is_enabled) VALUES ($1, 'Test Person', true) RETURNING id",
+    )
+    .bind(email)
+    .fetch_one(pool)
+    .await
+    .expect("mailbox");
+    sqlx::query("INSERT INTO mailbox_settings (mailbox_id) VALUES ($1)")
+        .bind(mailbox_id)
+        .execute(pool)
+        .await
+        .expect("settings");
+    sqlx::query(
+        "INSERT INTO mailbox_users (mailbox_id, user_id, can_read, can_send, can_manage, is_default) VALUES ($1, $2, true, true, true, true)",
+    )
+    .bind(mailbox_id)
+    .bind(id)
+    .execute(pool)
+    .await
+    .expect("grant");
     id
 }
 
@@ -242,23 +262,24 @@ async fn sessions_and_mailbox_grants_are_enforced() {
     let (status, _, _) = send(&desk.app, call("GET", "/api/v1/auth/me", None, None, true)).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 
-    let address = format!("desk-{suffix}@kamfany.test");
-    let (status, created, _) = send(
+    let mailbox_id = sqlx::query_scalar::<_, Uuid>("SELECT id FROM mailboxes WHERE address = $1")
+        .bind(&owner_email)
+        .fetch_one(&desk.pool)
+        .await
+        .expect("mailbox")
+        .to_string();
+    let (status, _, _) = send(
         &desk.app,
         call(
             "POST",
             "/api/v1/mailboxes",
             Some(&owner_token),
-            Some(json!({ "address": address, "display_name": "Desk" })),
+            Some(json!({ "address": format!("other-{suffix}@kamfany.test"), "display_name": "Other" })),
             true,
         ),
     )
     .await;
-    assert_eq!(status, StatusCode::CREATED);
-    assert_eq!(created["data"]["is_receiving_verified"], false);
-    assert_eq!(created["data"]["is_enabled"], true);
-    assert_eq!(created["data"]["can_read"], true);
-    let mailbox_id = created["data"]["id"].as_str().expect("id").to_string();
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
 
     let (status, patched, _) = send(
         &desk.app,
@@ -297,7 +318,8 @@ async fn sessions_and_mailbox_grants_are_enforced() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(listed["data"].as_array().expect("list").len(), 0);
+    assert_eq!(listed["data"].as_array().expect("list").len(), 1);
+    assert_eq!(listed["data"][0]["address"], member_email);
 
     let (status, _, _) = send(
         &desk.app,
@@ -336,7 +358,7 @@ async fn sessions_and_mailbox_grants_are_enforced() {
         ),
     )
     .await;
-    assert_eq!(status, StatusCode::OK);
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
 
     let (status, granted, _) = send(
         &desk.app,
@@ -344,8 +366,7 @@ async fn sessions_and_mailbox_grants_are_enforced() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(granted["data"][0]["address"], address);
-    assert_eq!(granted["data"][0]["can_send"], false);
+    assert_eq!(granted["data"][0]["address"], member_email);
 
     let (status, _, rotated) = send(
         &desk.app,

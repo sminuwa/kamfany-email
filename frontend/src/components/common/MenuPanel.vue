@@ -7,9 +7,10 @@ const open = defineModel<boolean>({ required: true });
 withDefaults(
   defineProps<{
     align?: "start" | "end";
+    side?: "down" | "up";
     label: string;
   }>(),
-  { align: "end" },
+  { align: "end", side: "down" },
 );
 
 const root = ref<HTMLElement | null>(null);
@@ -48,8 +49,11 @@ watch(open, async (isOpen) => {
       tabindex="-1"
       role="menu"
       :aria-label="label"
-      class="absolute z-40 mt-2 min-w-56 rounded-panel border border-line bg-surface p-1.5 text-ink shadow-panel"
-      :class="align === 'start' ? 'left-0' : 'right-0'"
+      class="km-card absolute z-40 min-w-56 p-1.5 text-ink"
+      :class="[
+        align === 'start' ? 'left-0' : 'right-0',
+        side === 'up' ? 'bottom-full mb-2' : 'top-full mt-2',
+      ]"
     >
       <slot />
     </div>

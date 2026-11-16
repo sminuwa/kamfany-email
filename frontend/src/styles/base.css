@@ -34,7 +34,36 @@ input::placeholder {
   opacity: 1;
 }
 
-.shadow-panel {
+.km-rail-toggle {
+  background: #ffffff;
+}
+
+.km-rail-toggle:hover {
+  background: #f3f6f5;
+}
+
+.km-rail-mark {
+  fill: var(--km-lagoon);
+}
+
+[data-theme="dark"] .km-rail-toggle {
+  background: #2a3331;
+}
+
+[data-theme="dark"] .km-rail-toggle:hover {
+  background: #343e3c;
+}
+
+[data-theme="dark"] .km-rail-mark {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+
+.km-card {
+  border: 1px solid var(--km-line);
+  border-radius: var(--radius-panel);
+  background: var(--km-surface);
   box-shadow: var(--km-shadow);
 }
 
@@ -58,13 +87,13 @@ input::placeholder {
 }
 
 .km-action {
-  color: #f4fff7;
-  background: linear-gradient(180deg, #1e8a44 0%, #146b34 100%);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.22) inset, 0 8px 16px rgba(20, 107, 52, 0.18);
+  color: var(--km-lagoon-ink);
+  background: var(--km-lagoon);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.14) inset, 0 8px 16px rgba(14, 59, 58, 0.2);
 }
 
 .km-action:hover:not(:disabled) {
-  background: linear-gradient(180deg, #18763a 0%, #105c2c 100%);
+  background: color-mix(in srgb, var(--km-lagoon) 84%, white);
 }
 
 .km-action:disabled,
@@ -144,8 +173,8 @@ input::placeholder {
   height: 2rem;
   place-items: center;
   border-radius: 10px;
-  background: linear-gradient(180deg, #1e8a44 0%, #146b34 100%);
-  color: #f4fff7;
+  background: var(--km-lagoon);
+  color: var(--km-lagoon-ink);
   font-size: 0.875rem;
   font-weight: 650;
 }
@@ -167,7 +196,7 @@ input::placeholder {
 }
 
 .km-table td {
-  padding: 0.75rem 1rem;
+  padding: 0.4rem 1rem;
 }
 
 .km-table thead tr {

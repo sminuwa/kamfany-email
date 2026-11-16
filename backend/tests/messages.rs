@@ -70,6 +70,46 @@ async fn create_user(pool: &PgPool, email: &str, role: Uuid) -> Uuid {
         .execute(pool)
         .await
         .expect("preferences");
+    let mailbox_id = sqlx::query_scalar::<_, Uuid>(
+        "INSERT INTO mailboxes (address, display_name, is_enabled) VALUES ($1, 'Test Person', true) RETURNING id",
+    )
+    .bind(email)
+    .fetch_one(pool)
+    .await
+    .expect("mailbox");
+    sqlx::query("INSERT INTO mailbox_settings (mailbox_id) VALUES ($1)")
+        .bind(mailbox_id)
+        .execute(pool)
+        .await
+        .expect("settings");
+    sqlx::query(
+        "INSERT INTO mailbox_users (mailbox_id, user_id, can_read, can_send, can_manage, is_default) VALUES ($1, $2, true, true, true, true)",
+    )
+    .bind(mailbox_id)
+    .bind(id)
+    .execute(pool)
+    .await
+    .expect("grant");
+    sqlx::query(
+        r#"
+        INSERT INTO folders (mailbox_id, system_key, name, sort_order)
+        SELECT $1, folder.key, folder.name, folder.sort_order
+        FROM (VALUES
+            ('inbox', 'Inbox', 0),
+            ('starred', 'Starred', 1),
+            ('snoozed', 'Snoozed', 2),
+            ('sent', 'Sent', 3),
+            ('drafts', 'Drafts', 4),
+            ('archive', 'Archive', 5),
+            ('spam', 'Spam', 6),
+            ('trash', 'Trash', 7)
+        ) AS folder (key, name, sort_order)
+        "#,
+    )
+    .bind(mailbox_id)
+    .execute(pool)
+    .await
+    .expect("folders");
     id
 }
 
@@ -152,11 +192,17 @@ async fn stored_mail_can_be_filed_threaded_and_labelled() {
     let suffix = Uuid::new_v4().simple();
     let owner_email = format!("owner-{suffix}@kamfany.test");
     let stranger_email = format!("stranger-{suffix}@kamfany.test");
-    let address = format!("desk-{suffix}@kamfany.test");
     let owner_role = uuid::uuid!("10000000-0000-4000-8000-000000000001");
     let member_role = uuid::uuid!("10000000-0000-4000-8000-000000000003");
     let owner_id = create_user(&desk.pool, &owner_email, owner_role).await;
     let stranger_id = create_user(&desk.pool, &stranger_email, member_role).await;
+    let address = owner_email.clone();
+    let mailbox_id = sqlx::query_scalar::<_, Uuid>("SELECT id FROM mailboxes WHERE address = $1")
+        .bind(&address)
+        .fetch_one(&desk.pool)
+        .await
+        .expect("mailbox")
+        .to_string();
 
     let (status, _, owner_cookie) = send(
         &desk.app,
@@ -170,19 +216,6 @@ async fn stored_mail_can_be_filed_threaded_and_labelled() {
     .await;
     assert_eq!(status, StatusCode::OK);
     let owner_cookie = owner_cookie.expect("owner session");
-
-    let (status, created, _) = send(
-        &desk.app,
-        call(
-            "POST",
-            "/api/v1/mailboxes",
-            &owner_cookie,
-            Some(json!({ "address": address, "display_name": "Desk" })),
-        ),
-    )
-    .await;
-    assert_eq!(status, StatusCode::CREATED);
-    let mailbox_id = created["data"]["id"].as_str().expect("mailbox").to_string();
 
     let first_header = format!("<first-{suffix}@example.test>");
     let second_header = format!("<second-{suffix}@example.test>");

@@ -36,7 +36,7 @@ use crate::api::messages::{
 use crate::api::middleware::{cors_layer, security_headers};
 use crate::api::provider::{provider_status, provider_sync, resend_webhook, send_message};
 use crate::api::search::search;
-use crate::api::users::{create_user, list_users};
+use crate::api::users::{create_user, list_users, update_user};
 use crate::config::ConfigError;
 use crate::state::AppState;
 
@@ -159,6 +159,7 @@ fn browser_router() -> Router<AppState> {
         .route("/api/v1/provider", get(provider_status).post(provider_sync))
         .route("/api/v1/audit", get(list_audit))
         .route("/api/v1/users", get(list_users).post(create_user))
+        .route("/api/v1/users/{id}", patch(update_user))
         .route("/api/v1/contacts", get(contacts).post(add_contact))
         .route("/api/v1/contacts/import", post(import))
         .route(

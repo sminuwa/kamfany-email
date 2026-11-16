@@ -34,7 +34,7 @@ onMounted(async () => {
     <p class="mt-3 max-w-[62ch] text-sm leading-relaxed text-muted">Recent actions recorded for this desk.</p>
     <p v-if="notice" class="mt-4 rounded-control bg-surface px-3 py-2 text-sm text-danger" role="alert">{{ notice }}</p>
     <p v-else-if="audit.length === 0" class="mt-6 text-sm text-muted">No audit records yet.</p>
-    <div v-else class="mt-6 overflow-x-auto rounded-panel border border-line bg-surface">
+    <div v-else class="km-card mt-6 overflow-x-auto">
       <table class="km-table">
         <thead>
           <tr>

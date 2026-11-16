@@ -30,7 +30,7 @@ async function submit() {
 </script>
 
 <template>
-  <section class="mx-auto flex min-h-[calc(100dvh-3.5rem-3rem)] w-full max-w-md flex-col justify-center">
+  <section class="mx-auto flex min-h-full w-full max-w-md flex-col justify-center">
     <h1 class="text-center text-[2rem] font-semibold leading-tight tracking-[-0.03em]">Change password</h1>
     <p class="mt-3 text-center text-sm leading-relaxed text-muted">
       12 to 128 characters. Other signed-in sessions on this account end when the password changes.

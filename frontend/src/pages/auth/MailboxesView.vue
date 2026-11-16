@@ -135,7 +135,7 @@ const stats = computed(() => [
     <GrantAccessDialog v-model="grantOpen" :mailbox-id="grantMailboxId" @granted="notice = $event" />
 
     <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <article v-for="stat in stats" :key="stat.label" class="rounded-panel border border-line bg-surface px-4 py-4">
+      <article v-for="stat in stats" :key="stat.label" class="km-card px-4 py-4">
         <div class="flex items-center gap-3">
           <span class="km-badge" :class="stat.tone">
             <component :is="stat.icon" class="size-4" />
@@ -175,7 +175,7 @@ const stats = computed(() => [
       {{ notice }}
     </p>
 
-    <ul v-if="visible.length" class="mt-4 divide-y divide-line rounded-panel border border-line bg-surface min-[800px]:hidden">
+    <ul v-if="visible.length" class="mt-4 divide-y divide-line km-card min-[800px]:hidden">
       <li v-for="mailbox in visible" :key="mailbox.id" class="space-y-3 px-4 py-3">
         <div>
           <p class="flex items-center gap-2 font-medium">
@@ -235,7 +235,7 @@ const stats = computed(() => [
       </li>
     </ul>
 
-    <div v-if="visible.length" class="mt-4 hidden rounded-panel border border-line bg-surface min-[800px]:block">
+    <div v-if="visible.length" class="mt-4 hidden km-card min-[800px]:block">
       <table class="km-table min-w-[720px]">
         <thead>
           <tr>

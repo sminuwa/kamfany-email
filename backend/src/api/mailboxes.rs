@@ -1,7 +1,7 @@
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
+use axum::response::Response;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool};
@@ -10,7 +10,7 @@ use uuid::Uuid;
 use crate::api::body::Body;
 use crate::api::errors::AppError;
 use crate::api::response::ApiData;
-use crate::auth::{CurrentUser, display_name, normalize_email, pool_of, unique_or, write_audit};
+use crate::auth::{CurrentUser, display_name, pool_of, write_audit};
 use crate::state::AppState;
 
 #[derive(Debug, Serialize, FromRow)]
@@ -39,6 +39,7 @@ pub struct MemberView {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 pub struct MailboxBody {
     address: String,
     display_name: String,
@@ -51,6 +52,7 @@ pub struct MailboxPatch {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 pub struct GrantBody {
     email: String,
     can_read: Option<bool>,
@@ -80,7 +82,6 @@ pub async fn list_mailboxes(
     let platform = user.allows("mailbox.manage");
     let rows = sqlx::query_as::<_, MailboxRow>(MAILBOX_LIST)
         .bind(user.id)
-        .bind(platform)
         .fetch_all(pool)
         .await?;
     Ok(Json(ApiData {
@@ -110,63 +111,10 @@ pub async fn create_mailbox(
             "You do not have permission to register a mailbox.".into(),
         ));
     }
-    let pool = pool_of(&state)?;
-    let address = normalize_email(&body.address)?;
-    let name = display_name(&body.display_name)?;
-    let mut tx = pool.begin().await?;
-    let id = match sqlx::query_scalar::<_, Uuid>(
-        "INSERT INTO mailboxes (address, display_name, is_enabled) VALUES ($1, $2, true) RETURNING id",
-    )
-    .bind(&address)
-    .bind(&name)
-    .fetch_one(&mut *tx)
-    .await
-    {
-        Ok(id) => id,
-        Err(error) => return Err(unique_or(error, "That address is already registered.")),
-    };
-    sqlx::query("INSERT INTO mailbox_settings (mailbox_id) VALUES ($1)")
-        .bind(id)
-        .execute(&mut *tx)
-        .await?;
-    crate::records::ensure_system_folders(&mut tx, id).await?;
-    let has_default = sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS(SELECT 1 FROM mailbox_users WHERE user_id = $1 AND is_default)",
-    )
-    .bind(user.id)
-    .fetch_one(&mut *tx)
-    .await?;
-    sqlx::query(
-        r#"
-        INSERT INTO mailbox_users
-            (mailbox_id, user_id, can_read, can_send, can_manage, is_default)
-        VALUES ($1, $2, true, true, true, $3)
-        "#,
-    )
-    .bind(id)
-    .bind(user.id)
-    .bind(!has_default)
-    .execute(&mut *tx)
-    .await?;
-    if !has_default {
-        sqlx::query("UPDATE user_preferences SET default_mailbox_id = $2 WHERE user_id = $1")
-            .bind(user.id)
-            .bind(id)
-            .execute(&mut *tx)
-            .await?;
-    }
-    tx.commit().await?;
-    write_audit(
-        pool,
-        Some(user.id),
-        "mailbox.created",
-        Some("mailbox"),
-        Some(id),
-        serde_json::json!({ "address": address }),
-    )
-    .await?;
-    let view = load_mailbox(pool, id, &user).await?;
-    Ok((StatusCode::CREATED, Json(ApiData { data: view })).into_response())
+    let _ = (state, body);
+    Err(AppError::Validation(
+        "Create a person to open a mailbox.".into(),
+    ))
 }
 
 pub async fn update_mailbox(
@@ -218,29 +166,10 @@ pub async fn delete_mailbox(
     user: CurrentUser,
     Path(id): Path<Uuid>,
 ) -> Result<StatusCode, AppError> {
-    if !user.allows("mailbox.manage") {
-        return Err(AppError::Forbidden(
-            "You do not have permission to remove a mailbox.".into(),
-        ));
-    }
-    let pool = pool_of(&state)?;
-    let result = sqlx::query("DELETE FROM mailboxes WHERE id = $1")
-        .bind(id)
-        .execute(pool)
-        .await?;
-    if result.rows_affected() == 0 {
-        return Err(AppError::NotFound);
-    }
-    write_audit(
-        pool,
-        Some(user.id),
-        "mailbox.deleted",
-        Some("mailbox"),
-        Some(id),
-        serde_json::json!({}),
-    )
-    .await?;
-    Ok(StatusCode::NO_CONTENT)
+    let _ = (state, user, id);
+    Err(AppError::Validation(
+        "A mailbox stays with its person.".into(),
+    ))
 }
 
 pub async fn list_members(
@@ -275,66 +204,10 @@ pub async fn grant_member(
     Path(id): Path<Uuid>,
     Body(body): Body<GrantBody>,
 ) -> Result<Json<ApiData<MemberView>>, AppError> {
-    let pool = pool_of(&state)?;
-    let mailbox = load_mailbox(pool, id, &user).await?;
-    if !mailbox.can_manage {
-        return Err(AppError::NotFound);
-    }
-    let email = normalize_email(&body.email)?;
-    let mut can_read = body.can_read.unwrap_or(true);
-    let can_send = body.can_send.unwrap_or(false);
-    let can_manage = body.can_manage.unwrap_or(false);
-    if can_send || can_manage {
-        can_read = true;
-    }
-    if !can_read && !can_send && !can_manage {
-        return Err(AppError::Validation(
-            "Choose at least one permission.".into(),
-        ));
-    }
-    let member_id = sqlx::query_scalar::<_, Uuid>("SELECT id FROM users WHERE email = $1")
-        .bind(&email)
-        .fetch_optional(pool)
-        .await?
-        .ok_or_else(|| AppError::Validation("No account uses that email.".into()))?;
-    sqlx::query(
-        r#"
-        INSERT INTO user_preferences (user_id)
-        VALUES ($1)
-        ON CONFLICT (user_id) DO NOTHING
-        "#,
-    )
-    .bind(member_id)
-    .execute(pool)
-    .await?;
-    sqlx::query(
-        r#"
-        INSERT INTO mailbox_users (mailbox_id, user_id, can_read, can_send, can_manage)
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (mailbox_id, user_id) DO UPDATE
-        SET can_read = EXCLUDED.can_read,
-            can_send = EXCLUDED.can_send,
-            can_manage = EXCLUDED.can_manage
-        "#,
-    )
-    .bind(id)
-    .bind(member_id)
-    .bind(can_read)
-    .bind(can_send)
-    .bind(can_manage)
-    .execute(pool)
-    .await?;
-    write_audit(
-        pool,
-        Some(user.id),
-        "mailbox.member_granted",
-        Some("mailbox"),
-        Some(id),
-        serde_json::json!({ "user_id": member_id }),
-    )
-    .await?;
-    let member = member(pool, id, member_id).await?;
-    Ok(Json(ApiData { data: member }))
+    let _ = (state, user, id, body);
+    Err(AppError::Validation(
+        "A mailbox belongs to one person.".into(),
+    ))
 }
 
 pub async fn revoke_member(
@@ -342,36 +215,10 @@ pub async fn revoke_member(
     user: CurrentUser,
     Path((id, member_id)): Path<(Uuid, Uuid)>,
 ) -> Result<StatusCode, AppError> {
-    let pool = pool_of(&state)?;
-    let mailbox = load_mailbox(pool, id, &user).await?;
-    if !mailbox.can_manage {
-        return Err(AppError::NotFound);
-    }
-    let result = sqlx::query("DELETE FROM mailbox_users WHERE mailbox_id = $1 AND user_id = $2")
-        .bind(id)
-        .bind(member_id)
-        .execute(pool)
-        .await?;
-    if result.rows_affected() == 0 {
-        return Err(AppError::NotFound);
-    }
-    sqlx::query(
-        "UPDATE user_preferences SET default_mailbox_id = NULL WHERE user_id = $1 AND default_mailbox_id = $2",
-    )
-    .bind(member_id)
-    .bind(id)
-    .execute(pool)
-    .await?;
-    write_audit(
-        pool,
-        Some(user.id),
-        "mailbox.member_revoked",
-        Some("mailbox"),
-        Some(id),
-        serde_json::json!({ "user_id": member_id }),
-    )
-    .await?;
-    Ok(StatusCode::NO_CONTENT)
+    let _ = (state, user, id, member_id);
+    Err(AppError::Validation(
+        "A mailbox belongs to one person.".into(),
+    ))
 }
 
 pub async fn make_default(
@@ -412,7 +259,7 @@ pub async fn make_default(
     Ok(Json(ApiData { data: view }))
 }
 
-const MAILBOX_LIST: &str = "SELECT m.id, m.address::text AS address, m.display_name, m.is_enabled, m.is_receiving_verified, mu.can_read, mu.can_send, mu.can_manage, mu.is_default, m.created_at FROM mailboxes m LEFT JOIN mailbox_users mu ON mu.mailbox_id = m.id AND mu.user_id = $1 WHERE mu.user_id IS NOT NULL OR $2 ORDER BY m.address";
+const MAILBOX_LIST: &str = "SELECT m.id, m.address::text AS address, m.display_name, m.is_enabled, m.is_receiving_verified, mu.can_read, mu.can_send, mu.can_manage, mu.is_default, m.created_at FROM mailboxes m JOIN mailbox_users mu ON mu.mailbox_id = m.id AND mu.user_id = $1 WHERE mu.can_read = true ORDER BY m.address";
 
 const MAILBOX_ONE: &str = "SELECT m.id, m.address::text AS address, m.display_name, m.is_enabled, m.is_receiving_verified, mu.can_read, mu.can_send, mu.can_manage, mu.is_default, m.created_at FROM mailboxes m LEFT JOIN mailbox_users mu ON mu.mailbox_id = m.id AND mu.user_id = $1 WHERE m.id = $2";
 
@@ -451,19 +298,3 @@ fn view_from(row: MailboxRow, platform: bool) -> MailboxView {
     }
 }
 
-async fn member(pool: &PgPool, mailbox_id: Uuid, user_id: Uuid) -> Result<MemberView, AppError> {
-    sqlx::query_as::<_, MemberView>(
-        r#"
-        SELECT u.id, u.email::text AS email, u.display_name,
-               mu.can_read, mu.can_send, mu.can_manage, mu.is_default
-        FROM mailbox_users mu
-        JOIN users u ON u.id = mu.user_id
-        WHERE mu.mailbox_id = $1 AND mu.user_id = $2
-        "#,
-    )
-    .bind(mailbox_id)
-    .bind(user_id)
-    .fetch_one(pool)
-    .await
-    .map_err(AppError::from)
-}

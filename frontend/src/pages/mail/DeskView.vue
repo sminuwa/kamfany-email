@@ -60,8 +60,8 @@ watch(
 
 <template>
   <div class="desk-grid grid h-full min-h-0 grid-cols-1 gap-3 min-[960px]:grid-cols-[minmax(280px,0.92fr)_minmax(0,1.15fr)]">
-    <MessageList v-show="showList" class="rounded-panel shadow-panel" @open="openMessage" />
-    <section v-show="showReader" class="flex h-full min-h-0 flex-col rounded-panel bg-surface shadow-panel" aria-label="Reading pane">
+    <MessageList v-show="showList" class="km-card overflow-hidden" @open="openMessage" />
+    <section v-show="showReader" class="km-card flex h-full min-h-0 flex-col overflow-hidden" aria-label="Reading pane">
       <ComposerSheet v-if="ui.composerOpen" />
       <ReadingPane v-else-if="selected" :message="selected" @close="closeMessage" />
       <div v-else-if="selectedId" class="grid h-full place-items-center px-8 text-center">

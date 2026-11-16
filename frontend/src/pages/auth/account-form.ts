@@ -6,4 +6,4 @@ export const primary =
 
 export const quiet = "inline-flex h-9 items-center rounded-control px-3 text-sm hover:bg-canvas";
 
-export const panel = "rounded-panel border border-line bg-surface p-5";
+export const panel = "km-card p-5";

@@ -39,6 +39,9 @@ interface PersonJson {
   display_name: string;
   roles: string[];
   created_at?: string;
+  mailbox_id: string;
+  is_enabled: boolean;
+  is_receiving_verified: boolean;
 }
 
 export interface PersonAccount {
@@ -47,6 +50,9 @@ export interface PersonAccount {
   displayName: string;
   roles: string[];
   createdAt: string;
+  mailboxId: string;
+  mailboxEnabled: boolean;
+  receivingVerified: boolean;
 }
 
 function profileFrom(raw: ProfileJson): AccountProfile {
@@ -123,13 +129,25 @@ export async function revokeSession(id: string): Promise<void> {
 
 export async function fetchPeople(): Promise<PersonAccount[]> {
   const response = await http.get<ApiData<PersonJson[]>>("/api/v1/users");
-  return response.data.data.map((person) => ({
+  return response.data.data.map(personFrom);
+}
+
+export async function updatePersonRole(id: string, role: "member" | "administrator"): Promise<PersonAccount> {
+  const response = await http.patch<ApiData<PersonJson>>(`/api/v1/users/${id}`, { role });
+  return personFrom(response.data.data);
+}
+
+function personFrom(person: PersonJson): PersonAccount {
+  return {
     id: person.id,
     email: person.email,
     displayName: person.display_name,
     roles: person.roles,
     createdAt: person.created_at ?? "",
-  }));
+    mailboxId: person.mailbox_id,
+    mailboxEnabled: person.is_enabled,
+    receivingVerified: person.is_receiving_verified,
+  };
 }
 
 export async function createPerson(input: {

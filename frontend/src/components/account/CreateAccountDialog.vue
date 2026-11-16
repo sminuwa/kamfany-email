@@ -91,11 +91,11 @@ async function submit() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="create-account-title"
-        class="w-full max-w-md rounded-panel border border-line bg-surface p-6 text-ink shadow-panel"
+        class="km-card w-full max-w-md p-6 text-ink"
         @keydown="trapTab"
       >
         <div class="flex items-start justify-between gap-4">
-          <h2 id="create-account-title" class="text-xl font-semibold tracking-[-0.03em]">Create an account</h2>
+          <h2 id="create-account-title" class="text-xl font-semibold tracking-[-0.03em]">Register a mailbox</h2>
           <button
             type="button"
             class="grid size-8 shrink-0 place-items-center rounded-control text-muted hover:bg-canvas hover:text-ink"
@@ -107,8 +107,8 @@ async function submit() {
           </button>
         </div>
         <p class="mt-2 text-sm leading-relaxed text-muted">
-          An owner or an administrator can create a member or an administrator. The owner role stays with the first
-          account. The new person signs in with this temporary password.
+          An owner or an administrator registers a mailbox for a member or an administrator. The owner role stays with
+          the first account. This address is how that person signs in, and nobody else can open the mailbox.
         </p>
         <form class="mt-5 space-y-3" @submit.prevent="submit">
           <input
@@ -118,15 +118,15 @@ async function submit() {
             maxlength="80"
             placeholder="Display name"
             :class="[field, 'bg-canvas']"
-            aria-label="New person name"
+            aria-label="Mailbox name"
           />
           <input
             v-model="personEmail"
             type="email"
             required
-            placeholder="person@kamfany.com"
+            placeholder="name@kamfany.com"
             :class="[field, 'bg-canvas']"
-            aria-label="New person email"
+            aria-label="Mailbox address"
           />
           <input
             v-model="personPassword"
@@ -154,7 +154,7 @@ async function submit() {
               Cancel
             </button>
             <button type="submit" class="km-action" :disabled="pending">
-              {{ pending ? "Creating…" : "Create account" }}
+              {{ pending ? "Registering…" : "Register mailbox" }}
             </button>
           </div>
         </form>

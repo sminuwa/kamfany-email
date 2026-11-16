@@ -19,6 +19,50 @@ const SYSTEM_FOLDERS: &[(&str, &str, i32)] = &[
     ("trash", "Trash", 7),
 ];
 
+pub async fn open_person_mailbox(
+    connection: &mut PgConnection,
+    user_id: Uuid,
+    address: &str,
+    name: &str,
+) -> Result<Uuid, AppError> {
+    let mailbox_id = sqlx::query_scalar::<_, Uuid>(
+        r#"
+        INSERT INTO mailboxes (address, display_name, is_enabled)
+        VALUES ($1, $2, true)
+        ON CONFLICT (address) DO UPDATE SET display_name = mailboxes.display_name
+        RETURNING id
+        "#,
+    )
+    .bind(address)
+    .bind(name)
+    .fetch_one(&mut *connection)
+    .await?;
+    sqlx::query("INSERT INTO mailbox_settings (mailbox_id) VALUES ($1) ON CONFLICT DO NOTHING")
+        .bind(mailbox_id)
+        .execute(&mut *connection)
+        .await?;
+    ensure_system_folders(connection, mailbox_id).await?;
+    sqlx::query(
+        r#"
+        INSERT INTO mailbox_users
+            (mailbox_id, user_id, can_read, can_send, can_manage, is_default)
+        VALUES ($1, $2, true, true, true, true)
+        ON CONFLICT (mailbox_id, user_id) DO UPDATE
+        SET can_read = true, can_send = true, can_manage = true, is_default = true
+        "#,
+    )
+    .bind(mailbox_id)
+    .bind(user_id)
+    .execute(&mut *connection)
+    .await?;
+    sqlx::query("UPDATE user_preferences SET default_mailbox_id = $2 WHERE user_id = $1")
+        .bind(user_id)
+        .bind(mailbox_id)
+        .execute(&mut *connection)
+        .await?;
+    Ok(mailbox_id)
+}
+
 pub async fn ensure_system_folders(
     connection: &mut PgConnection,
     mailbox_id: Uuid,

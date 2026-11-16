@@ -247,8 +247,8 @@ async function leave() {
     <div class="mt-3 grid gap-3 min-[900px]:grid-cols-2">
       <article :class="panel">
         <div class="flex items-start justify-between gap-3">
-          <h2 class="text-lg font-semibold tracking-[-0.02em]">Mailboxes</h2>
-          <RouterLink to="/account/mailboxes" class="text-sm font-semibold text-ink hover:underline">View mailboxes</RouterLink>
+          <h2 class="text-lg font-semibold tracking-[-0.02em]">Your mailbox</h2>
+          <RouterLink v-if="auth.canManageUsers" to="/account/mailboxes" class="text-sm font-semibold text-ink hover:underline">Mailboxes</RouterLink>
         </div>
         <ul v-if="mailboxPreview.length" class="mt-3 divide-y divide-line">
           <li v-for="mailbox in mailboxPreview" :key="mailbox.id" class="flex items-center justify-between gap-3 py-2">

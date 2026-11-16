@@ -6,6 +6,7 @@ const AUDIT_ACTIONS: Record<string, string> = {
   "auth.password_reset": "Password reset",
   "auth.session_revoked": "Session ended",
   "user.created": "Account created",
+  "user.role_changed": "Role changed",
   "mailbox.created": "Mailbox registered",
   "mailbox.updated": "Mailbox updated",
   "mailbox.deleted": "Mailbox removed",

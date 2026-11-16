@@ -55,7 +55,7 @@ async function endSession(session: DeskSession) {
       {{ notice }}
     </p>
     <p v-if="sessions.length === 0" class="mt-6 text-sm text-muted">No browser is signed in.</p>
-    <ul v-else class="mt-6 divide-y divide-line overflow-hidden rounded-panel border border-line bg-surface">
+    <ul v-else class="km-card mt-6 divide-y divide-line overflow-hidden">
       <li v-for="session in visible" :key="session.id" class="km-row flex items-center gap-3 px-4 py-3">
         <div class="min-w-0 flex-1">
           <p class="truncate text-sm" :title="session.userAgent || undefined">
