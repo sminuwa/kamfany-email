@@ -21,10 +21,12 @@ import { useUiStore } from "../../stores/ui";
 import type { MailMessage, OrganizationalFolder } from "../../types/mail";
 import { emailSrcdoc } from "../../utils/email-document";
 import { formatFileSize, formatMessageDate, formatPeople, scanNote } from "../../utils/format-mail";
+import { isSnoozed } from "../../utils/mail-query";
 import { deliveryLabel } from "../../utils/message-html";
 import { sanitizeEmailHtml } from "../../utils/sanitize-email";
 import LabelMenu from "./LabelMenu.vue";
 import MoveMenu from "./MoveMenu.vue";
+import SnoozeMenu from "./SnoozeMenu.vue";
 
 const props = defineProps<{
   message: MailMessage;
@@ -45,6 +47,8 @@ const sanitized = computed(() =>
   props.message.bodyHtml ? sanitizeEmailHtml(props.message.bodyHtml) : "",
 );
 const srcdoc = computed(() => emailSrcdoc(sanitized.value, resolved.value));
+const snoozed = computed(() => isSnoozed(props.message, Date.now()));
+const canSnooze = computed(() => props.message.folder === "inbox" || snoozed.value);
 const filing = computed(() => {
   const folder = props.message.folder;
   if (folder === "archive" || folder === "spam" || folder === "trash") {
@@ -120,6 +124,12 @@ function openThread(id: string) {
       >
         <Star class="size-4" :class="message.isStarred ? 'fill-brass text-brass' : ''" />
       </button>
+      <SnoozeMenu
+        v-if="canSnooze"
+        compact
+        :unsnooze="snoozed"
+        @snooze="mail.snooze(ids(), $event)"
+      />
       <button
         type="button"
         class="grid size-9 place-items-center rounded-control text-ink hover:bg-canvas"
@@ -162,9 +172,10 @@ function openThread(id: string) {
           <p class="truncate font-semibold">{{ message.from.name }}</p>
           <p class="truncate text-sm text-muted">{{ message.from.email }}</p>
         </div>
-        <time class="shrink-0 text-right text-xs text-muted" :datetime="message.receivedAt">
-          {{ formatMessageDate(message.receivedAt) }}
-        </time>
+        <div class="shrink-0 text-right text-xs text-muted">
+          <time :datetime="message.receivedAt">{{ formatMessageDate(message.receivedAt) }}</time>
+          <p v-if="snoozed && message.snoozedUntil">Snoozed until {{ formatMessageDate(message.snoozedUntil) }}</p>
+        </div>
       </div>
       <dl class="mt-3 space-y-1 text-sm">
         <div class="flex gap-2">

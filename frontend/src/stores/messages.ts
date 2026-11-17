@@ -80,6 +80,31 @@ export const useMailStore = defineStore("mail", () => {
   let listTicket = 0;
   let focusTicket = 0;
   let searchTicket = 0;
+  let wakeTimer = 0;
+
+  function disarmWake() {
+    window.clearTimeout(wakeTimer);
+    wakeTimer = 0;
+  }
+
+  function armWake() {
+    disarmWake();
+    const at = folders.value.find((folder) => folder.systemKey === "snoozed")?.wakeAt;
+    if (!at) {
+      return;
+    }
+    const delay = new Date(at).getTime() - Date.now();
+    if (delay <= 0) {
+      return;
+    }
+    wakeTimer = window.setTimeout(() => {
+      if (new Date(at).getTime() - Date.now() <= 1000) {
+        void reload();
+      } else {
+        armWake();
+      }
+    }, Math.min(delay + 500, 60 * 60 * 1000));
+  }
 
   function byId(id: string): MailMessage | undefined {
     return (
@@ -89,6 +114,7 @@ export const useMailStore = defineStore("mail", () => {
   }
 
   function clearDesk() {
+    disarmWake();
     listTicket += 1;
     focusTicket += 1;
     mailboxId.value = null;
@@ -127,6 +153,7 @@ export const useMailStore = defineStore("mail", () => {
       labels.value = labelRows;
       messages.value = page.messages;
       nextCursor.value = page.nextCursor;
+      armWake();
     } catch (error) {
       if (mine !== listTicket) {
         return;
@@ -155,6 +182,7 @@ export const useMailStore = defineStore("mail", () => {
       labels.value = labelRows;
       messages.value = page.messages;
       nextCursor.value = page.nextCursor;
+      armWake();
       if (openId) {
         const opened = await fetchMessage(openId);
         if (mine !== listTicket) {
@@ -267,6 +295,16 @@ export const useMailStore = defineStore("mail", () => {
   async function toggleStar(id: string) {
     const message = byId(id) ?? (detail.value?.id === id ? detail.value : undefined);
     await setStar([id], !(message?.isStarred ?? false));
+  }
+
+  async function snooze(ids: string[], until: string | null) {
+    if (!mailboxId.value || ids.length === 0) {
+      return;
+    }
+    await run(() =>
+      changeMessages(mailboxId.value!, { ids, action: "snooze", snoozedUntil: until }),
+    );
+    clearSelected();
   }
 
   async function moveTo(ids: string[], target: string) {
@@ -498,6 +536,7 @@ export const useMailStore = defineStore("mail", () => {
     setRead,
     setStar,
     toggleStar,
+    snooze,
     moveTo,
     deleteMessages,
     addLabel,

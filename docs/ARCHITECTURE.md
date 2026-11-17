@@ -66,7 +66,7 @@ PostgreSQL, UUID primary keys, SQLx migrations. The binary command `migrate` app
 
 Messages keep an internal id and a separate `(provider, provider_message_id)`. Bodies can live in `body_text` / `body_html` or move to object storage via `body_storage_key`. Attachment bytes are not stored in PostgreSQL. `attachments.storage_key` points at an object. A row belongs to a draft or a message, not both. `scan_status` is `pending` until `CLAMAV_ADDRESS` points at clamd. A real `INSTREAM` reply can mark the file `clean` or `rejected`. A scanner error marks it `failed`. Nothing is marked clean without that reply.
 
-A message has one organizational folder. Labels are many-to-many. Starred and snoozed are flags (`is_starred`, `snoozed_until`), not exclusive folders. Delivery status is `queued`, `sending`, `accepted`, `delivered`, `bounced`, or `failed`. Provider acceptance is not delivery.
+A message has one organizational folder. Labels are many-to-many. Starred and snoozed are flags (`is_starred`, `snoozed_until`), not exclusive folders. Snooze sets `snoozed_until` on inbox mail. The inbox hides that mail until the time passes, then lists it again. Delivery status is `queued`, `sending`, `accepted`, `delivered`, `bounced`, or `failed`. Provider acceptance is not delivery.
 
 Search uses a generated `tsvector` on subject, sender, and plain text, plus the relational filters in `messages::search`. HTML is not indexed. The search service is separate from the folder listing so it can change later. A query returns the latest 50 matches the caller is allowed to read.
 

@@ -7,6 +7,8 @@ The desk name, company, public URL, logo, and sending domain are install setting
 
 The owner creates a named group, then adds mailboxes one at a time or from a CSV or Excel file of mailbox addresses. A group has no email address. Sending to the group delivers the mail to each enabled mailbox in it.
 
+Inbox mail can be snoozed until later today, tomorrow morning, next Monday morning, or a chosen time within a year. It leaves the inbox and returns when that time passes. Unsnooze brings it back immediately. Drafts and mail outside the inbox cannot be snoozed.
+
 ## Delivered
 
 Sign-in, password reset, webhook intake, sending, and uploads are counted in PostgreSQL. A full bucket returns 429. The sign-in budget uses the connecting address. The existing account lock still applies to a password.
@@ -36,7 +38,6 @@ Attachment objects include `scan_status`.
 - A webhook signing secret. Inbound events are still refused until it is set.
 - Marking a file clean when ClamAV is not configured.
 - Copying database dumps off the server.
-- Snooze. Nothing in the desk sets `snoozed_until`.
 - Password reset by email.
 - Notices to browsers connected to another API process. The rows are shared. The socket is local to this process.
 - Search inside drafts.

@@ -1,3 +1,4 @@
+use chrono::{DateTime, Duration, Utc};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -19,6 +20,7 @@ pub struct BulkChange {
     pub folder_id: Option<Uuid>,
     pub system_key: Option<String>,
     pub label_id: Option<Uuid>,
+    pub snoozed_until: Option<DateTime<Utc>>,
 }
 
 pub async fn mark_read(
@@ -37,6 +39,70 @@ pub async fn mark_read(
         .bind(read)
         .execute(pool)
         .await?;
+    Ok(())
+}
+
+pub(crate) fn accept_wake(until: DateTime<Utc>, now: DateTime<Utc>) -> Result<(), AppError> {
+    if until <= now {
+        return Err(AppError::Validation("Choose a time in the future.".into()));
+    }
+    if until > now + Duration::days(366) {
+        return Err(AppError::Validation(
+            "Snooze can be at most a year ahead.".into(),
+        ));
+    }
+    Ok(())
+}
+
+pub async fn mark_snooze(
+    pool: &PgPool,
+    user: &CurrentUser,
+    mailbox_id: Uuid,
+    ids: Vec<Uuid>,
+    until: Option<DateTime<Utc>>,
+) -> Result<(), AppError> {
+    let ids = clean_ids(ids)?;
+    require_reader(pool, mailbox_id, user).await?;
+    confirm_messages(pool, mailbox_id, &ids).await?;
+    if let Some(until) = until {
+        accept_wake(until, Utc::now())?;
+        let blocked: i64 = sqlx::query_scalar(
+            r#"
+            SELECT count(*)
+            FROM messages m
+            LEFT JOIN message_folder_assignments a ON a.message_id = m.id
+            LEFT JOIN folders f ON f.id = a.folder_id
+            WHERE m.mailbox_id = $1
+              AND m.id = ANY($2)
+              AND (m.status = 'draft' OR f.system_key IS DISTINCT FROM 'inbox')
+            "#,
+        )
+        .bind(mailbox_id)
+        .bind(&ids)
+        .fetch_one(pool)
+        .await?;
+        if blocked > 0 {
+            return Err(AppError::Validation(
+                "Only inbox mail can be snoozed.".into(),
+            ));
+        }
+        sqlx::query(
+            "UPDATE messages SET snoozed_until = $3 WHERE mailbox_id = $1 AND id = ANY($2)",
+        )
+        .bind(mailbox_id)
+        .bind(&ids)
+        .bind(until)
+        .execute(pool)
+        .await?;
+    } else {
+        sqlx::query(
+            "UPDATE messages SET snoozed_until = NULL WHERE mailbox_id = $1 AND id = ANY($2)",
+        )
+        .bind(mailbox_id)
+        .bind(&ids)
+        .execute(pool)
+        .await?;
+    }
     Ok(())
 }
 
@@ -234,6 +300,7 @@ pub async fn bulk(
             )
             .await
         }
+        "snooze" => mark_snooze(pool, user, mailbox_id, change.ids, change.snoozed_until).await,
         "move" => {
             let destination = match (change.folder_id, change.system_key) {
                 (Some(folder_id), None) => Destination::Folder(folder_id),
@@ -324,5 +391,20 @@ async fn confirm_label(pool: &PgPool, mailbox_id: Uuid, label_id: Uuid) -> Resul
         Ok(())
     } else {
         Err(AppError::NotFound)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::accept_wake;
+    use chrono::{Duration, Utc};
+
+    #[test]
+    fn a_wake_time_must_be_in_the_future_and_within_a_year() {
+        let now = Utc::now();
+        assert!(accept_wake(now, now).is_err());
+        assert!(accept_wake(now - Duration::hours(1), now).is_err());
+        assert!(accept_wake(now + Duration::hours(2), now).is_ok());
+        assert!(accept_wake(now + Duration::days(400), now).is_err());
     }
 }

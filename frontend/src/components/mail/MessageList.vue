@@ -7,12 +7,13 @@ import { useMailStore } from "../../stores/messages";
 import { useUiStore } from "../../stores/ui";
 import type { ComposeKind, LabelTone, MailMessage, OrganizationalFolder } from "../../types/mail";
 import { folderByKey } from "../../utils/folders";
-import { filterMessages, PAGE_SIZE } from "../../utils/mail-query";
+import { filterMessages, isSnoozed, PAGE_SIZE } from "../../utils/mail-query";
 import { filingAction, readActions, starAction } from "../../utils/message-menu";
 import LabelMenu from "./LabelMenu.vue";
 import MessageContextMenu from "./MessageContextMenu.vue";
 import MessageRow from "./MessageRow.vue";
 import MoveMenu from "./MoveMenu.vue";
+import SnoozeMenu from "./SnoozeMenu.vue";
 
 const emit = defineEmits<{
   open: [id: string];
@@ -127,6 +128,16 @@ const menuTargets = computed(() => {
 const menuFiling = computed(() => filingAction(menuTargets.value));
 const menuStar = computed(() => starAction(menuTargets.value));
 const menuRead = computed(() => readActions(menuTargets.value));
+const menuCanSnooze = computed(
+  () =>
+    Boolean(menuMessage.value) &&
+    menuMessage.value?.status !== "draft" &&
+    (menuMessage.value?.folder === "inbox" ||
+      menuTargets.value.some((message) => isSnoozed(message, Date.now()))),
+);
+const menuUnsnooze = computed(() =>
+  menuTargets.value.some((message) => isSnoozed(message, Date.now())),
+);
 const menuFolders = computed(() =>
   mail.folders
     .filter((item) => !item.systemKey)
@@ -205,6 +216,12 @@ function starFromMenu() {
   const starred = menuStar.value.starred;
   closeMenu();
   void mail.setStar(ids, starred);
+}
+
+function snoozeFromMenu(until: string | null) {
+  const ids = menuIds();
+  closeMenu();
+  void mail.snooze(ids, until);
 }
 
 function fileFromMenu() {
@@ -380,6 +397,11 @@ watch(activeLabel, (label) => {
         <button type="button" class="h-8 rounded-control px-2 text-sm hover:bg-canvas" @click="starSelected">
           Star
         </button>
+        <SnoozeMenu
+          v-if="folder.key === 'inbox' || folder.key === 'snoozed'"
+          :unsnooze="folder.key === 'snoozed' || selectedInView.some((message) => isSnoozed(message, Date.now()))"
+          @snooze="mail.snooze(selectedIds(), $event)"
+        />
         <MoveMenu @move="mail.moveTo(selectedIds(), $event)" />
         <LabelMenu @label="mail.addLabel(selectedIds(), $event)" />
       </div>
@@ -434,11 +456,14 @@ watch(activeLabel, (label) => {
       :read-actions="menuRead"
       :folders="menuFolders"
       :labels="mail.labels"
+      :can-snooze="menuCanSnooze"
+      :unsnooze="menuUnsnooze"
       @close="closeMenu"
       @open="openFromMenu"
       @reply="replyFromMenu"
       @read="readFromMenu"
       @star="starFromMenu"
+      @snooze="snoozeFromMenu"
       @file="fileFromMenu"
       @move="moveFromMenu"
       @label="labelFromMenu"

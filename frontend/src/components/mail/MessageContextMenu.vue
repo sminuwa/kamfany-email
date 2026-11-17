@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  AlarmClock,
   Archive,
   ChevronRight,
   Forward,
@@ -15,6 +16,7 @@ import {
 import { onClickOutside, onKeyStroke } from "@vueuse/core";
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import type { ComposeKind } from "../../types/mail";
+import { snoozeChoices, snoozeInstant } from "../../utils/snooze";
 
 const props = defineProps<{
   x: number;
@@ -28,6 +30,8 @@ const props = defineProps<{
   readActions: { read: boolean; label: string }[];
   folders: { id: string; name: string }[];
   labels: { id: string; name: string }[];
+  canSnooze?: boolean;
+  unsnooze?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -39,13 +43,17 @@ const emit = defineEmits<{
   file: [];
   move: [target: string];
   label: [id: string];
+  snooze: [until: string | null];
   remove: [];
 }>();
 
 const panel = ref<HTMLElement | null>(null);
 const left = ref(props.x);
 const top = ref(props.y);
-const section = ref<"move" | "label" | null>(null);
+const section = ref<"move" | "label" | "snooze" | null>(null);
+const when = ref("");
+const timeNote = ref("");
+const choices = computed(() => (section.value === "snooze" ? snoozeChoices() : []));
 
 const places = computed(() => [
   { id: "inbox", name: "Inbox" },
@@ -71,8 +79,19 @@ function place() {
   top.value = Math.max(pad, Math.min(props.y, window.innerHeight - rect.height - pad));
 }
 
-function toggle(next: "move" | "label") {
+function toggle(next: "move" | "label" | "snooze") {
   section.value = section.value === next ? null : next;
+  when.value = "";
+  timeNote.value = "";
+}
+
+function pickTime() {
+  const until = snoozeInstant(when.value);
+  if (!until) {
+    timeNote.value = "Choose a future time within a year.";
+    return;
+  }
+  emit("snooze", until);
 }
 
 function focusItem(step: number) {
@@ -156,6 +175,51 @@ watch(section, async () => {
         <Star class="size-4 text-muted" />
         {{ starLabel }}
       </button>
+      <template v-if="canSnooze">
+        <button
+          type="button"
+          role="menuitem"
+          :class="itemClass"
+          :aria-expanded="section === 'snooze'"
+          @click="toggle('snooze')"
+        >
+          <AlarmClock class="size-4 text-muted" />
+          Snooze
+          <ChevronRight class="ml-auto size-3.5 text-muted" :class="section === 'snooze' ? 'rotate-90' : ''" />
+        </button>
+        <div v-if="section === 'snooze'">
+          <button
+            v-for="choice in choices"
+            :key="choice.id"
+            type="button"
+            role="menuitem"
+            class="flex w-full items-center rounded-[8px] py-2 pr-2.5 pl-8 text-left text-sm hover:bg-canvas"
+            @click="emit('snooze', choice.until)"
+          >
+            {{ choice.label }}
+          </button>
+          <form class="space-y-1.5 py-1 pr-2.5 pl-8" @submit.prevent="pickTime">
+            <input
+              v-model="when"
+              type="datetime-local"
+              required
+              class="h-8 w-full rounded-control border border-line bg-canvas px-2 text-sm"
+              aria-label="Wake time"
+            />
+            <button type="submit" role="menuitem" class="text-sm hover:text-ink">Set time</button>
+            <p v-if="timeNote" class="text-xs text-muted">{{ timeNote }}</p>
+          </form>
+          <button
+            v-if="unsnooze"
+            type="button"
+            role="menuitem"
+            class="flex w-full items-center rounded-[8px] py-2 pr-2.5 pl-8 text-left text-sm hover:bg-canvas"
+            @click="emit('snooze', null)"
+          >
+            Unsnooze
+          </button>
+        </div>
+      </template>
       <div class="my-1 h-px bg-line" />
       <button type="button" role="menuitem" :class="itemClass" @click="emit('file')">
         <Inbox v-if="filingTarget === 'inbox'" class="size-4 text-muted" />

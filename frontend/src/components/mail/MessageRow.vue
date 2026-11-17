@@ -3,6 +3,7 @@ import { Flag, Paperclip, Star } from "@lucide/vue";
 import { computed } from "vue";
 import type { LabelTone, MailLabel, MailMessage } from "../../types/mail";
 import { formatListDate } from "../../utils/format-mail";
+import { isSnoozed } from "../../utils/mail-query";
 import { deliveryLabel } from "../../utils/message-html";
 
 const props = defineProps<{
@@ -27,6 +28,11 @@ const toneClass: Record<LabelTone, string> = {
 
 const chips = computed(() =>
   props.labels.filter((label) => props.message.labelIds.includes(label.id)),
+);
+const wakeLabel = computed(() =>
+  props.message.snoozedUntil && isSnoozed(props.message, Date.now())
+    ? formatListDate(props.message.snoozedUntil)
+    : "",
 );
 </script>
 
@@ -81,9 +87,9 @@ const chips = computed(() =>
         </span>
         <time
           class="shrink-0 text-xs tabular-nums text-muted"
-          :datetime="message.receivedAt"
+          :datetime="wakeLabel ? message.snoozedUntil ?? message.receivedAt : message.receivedAt"
         >
-          {{ formatListDate(message.receivedAt) }}
+          {{ wakeLabel ? `Until ${wakeLabel}` : formatListDate(message.receivedAt) }}
         </time>
       </div>
       <p

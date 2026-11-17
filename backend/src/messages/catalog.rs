@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::Serialize;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -15,6 +16,7 @@ pub struct FolderItem {
     pub color: Option<String>,
     pub sort_order: i32,
     pub unread: i64,
+    pub wake_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Serialize, sqlx::FromRow)]
@@ -94,6 +96,20 @@ pub async fn list_folders(
     .bind(mailbox_id)
     .fetch_one(pool)
     .await?;
+    let wake_at = sqlx::query_scalar::<_, Option<DateTime<Utc>>>(
+        r#"
+        SELECT min(m.snoozed_until)
+        FROM messages m
+        LEFT JOIN message_folder_assignments a ON a.message_id = m.id
+        LEFT JOIN folders f ON f.id = a.folder_id
+        WHERE m.mailbox_id = $1
+          AND m.snoozed_until > now()
+          AND COALESCE(f.system_key, '') <> 'trash'
+        "#,
+    )
+    .bind(mailbox_id)
+    .fetch_one(pool)
+    .await?;
     Ok(folders
         .into_iter()
         .map(|folder| {
@@ -106,6 +122,11 @@ pub async fn list_folders(
                     .map(|row| row.unread)
                     .unwrap_or(0),
             };
+            let wake_at = if folder.system_key.as_deref() == Some("snoozed") {
+                wake_at
+            } else {
+                None
+            };
             FolderItem {
                 id: folder.id,
                 system_key: folder.system_key,
@@ -113,6 +134,7 @@ pub async fn list_folders(
                 color: folder.color,
                 sort_order: folder.sort_order,
                 unread,
+                wake_at,
             }
         })
         .collect())
@@ -149,6 +171,7 @@ pub async fn create_folder(
         color,
         sort_order: 100,
         unread: 0,
+        wake_at: None,
     })
 }
 
@@ -192,6 +215,7 @@ pub async fn update_folder(
         color,
         sort_order: current.sort_order,
         unread: 0,
+        wake_at: None,
     })
 }
 

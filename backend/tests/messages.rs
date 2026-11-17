@@ -452,3 +452,162 @@ async fn stored_mail_can_be_filed_threaded_and_labelled() {
         .await
         .expect("user cleanup");
 }
+
+#[tokio::test]
+async fn inbox_mail_leaves_until_the_wake_time_and_then_returns() {
+    let desk = desk().await;
+    let suffix = Uuid::new_v4().simple();
+    let owner_email = format!("snooze-{suffix}@kamfany.test");
+    let owner_role = uuid::uuid!("10000000-0000-4000-8000-000000000001");
+    let owner_id = create_user(&desk.pool, &owner_email, owner_role).await;
+    let mailbox_id = sqlx::query_scalar::<_, Uuid>("SELECT id FROM mailboxes WHERE address = $1")
+        .bind(&owner_email)
+        .fetch_one(&desk.pool)
+        .await
+        .expect("mailbox");
+    let (status, _, owner_cookie) = send(
+        &desk.app,
+        call(
+            "POST",
+            "/api/v1/auth/login",
+            "",
+            Some(json!({ "email": owner_email, "password": "long-enough-password" })),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let owner_cookie = owner_cookie.expect("owner session");
+    store_inbound(
+        &desk.pool,
+        &inbound(
+            &owner_email,
+            &format!("snooze-{suffix}"),
+            &format!("<snooze-{suffix}@example.test>"),
+            None,
+            "Wake me later",
+        ),
+        &[],
+    )
+    .await
+    .expect("inbound");
+    let (status, page, _) = send(
+        &desk.app,
+        call(
+            "GET",
+            &format!("/api/v1/mailboxes/{mailbox_id}/messages?view=inbox"),
+            &owner_cookie,
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let message_id = page["data"]["messages"][0]["id"]
+        .as_str()
+        .expect("id")
+        .to_string();
+    let past = (Utc::now() - chrono::Duration::hours(1)).to_rfc3339();
+    let (status, denied, _) = send(
+        &desk.app,
+        call(
+            "POST",
+            &format!("/api/v1/mailboxes/{mailbox_id}/messages"),
+            &owner_cookie,
+            Some(json!({ "ids": [message_id], "action": "snooze", "snoozed_until": past })),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(denied["error"]["message"], "Choose a time in the future.");
+
+    let wake = (Utc::now() + chrono::Duration::hours(2)).to_rfc3339();
+    let (status, _, _) = send(
+        &desk.app,
+        call(
+            "POST",
+            &format!("/api/v1/mailboxes/{mailbox_id}/messages"),
+            &owner_cookie,
+            Some(json!({ "ids": [message_id], "action": "snooze", "snoozed_until": wake })),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+
+    let (status, inbox, _) = send(
+        &desk.app,
+        call(
+            "GET",
+            &format!("/api/v1/mailboxes/{mailbox_id}/messages?view=inbox"),
+            &owner_cookie,
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        inbox["data"]["messages"]
+            .as_array()
+            .expect("inbox")
+            .is_empty()
+    );
+    let (status, snoozed, _) = send(
+        &desk.app,
+        call(
+            "GET",
+            &format!("/api/v1/mailboxes/{mailbox_id}/messages?view=snoozed"),
+            &owner_cookie,
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        snoozed["data"]["messages"]
+            .as_array()
+            .expect("snoozed")
+            .len(),
+        1
+    );
+
+    let (status, _, _) = send(
+        &desk.app,
+        call(
+            "POST",
+            &format!("/api/v1/mailboxes/{mailbox_id}/messages"),
+            &owner_cookie,
+            Some(json!({ "ids": [message_id], "action": "snooze", "snoozed_until": null })),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (status, inbox, _) = send(
+        &desk.app,
+        call(
+            "GET",
+            &format!("/api/v1/mailboxes/{mailbox_id}/messages?view=inbox"),
+            &owner_cookie,
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        inbox["data"]["messages"].as_array().expect("inbox").len(),
+        1
+    );
+
+    sqlx::query("DELETE FROM messages WHERE mailbox_id = $1")
+        .bind(mailbox_id)
+        .execute(&desk.pool)
+        .await
+        .expect("message cleanup");
+    sqlx::query("DELETE FROM mailboxes WHERE id = $1")
+        .bind(mailbox_id)
+        .execute(&desk.pool)
+        .await
+        .expect("mailbox cleanup");
+    sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(owner_id)
+        .execute(&desk.pool)
+        .await
+        .expect("user cleanup");
+}

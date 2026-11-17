@@ -2,6 +2,7 @@ use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -68,6 +69,8 @@ pub struct BulkBody {
     folder_id: Option<Uuid>,
     system_key: Option<String>,
     label_id: Option<Uuid>,
+    #[serde(default)]
+    snoozed_until: Option<DateTime<Utc>>,
 }
 
 #[derive(Deserialize)]
@@ -143,6 +146,7 @@ pub async fn bulk_messages(
             folder_id: body.folder_id,
             system_key: body.system_key,
             label_id: body.label_id,
+            snoozed_until: body.snoozed_until,
         },
         &state.storage,
     )

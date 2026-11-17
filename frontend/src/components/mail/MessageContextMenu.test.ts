@@ -40,6 +40,7 @@ describe("MessageContextMenu", () => {
         readActions: [{ read: true, label: "Mark as read" }],
         folders: [{ id: "folder-1", name: "Clients" }],
         labels: [{ id: "label-1", name: "Billing" }],
+        canSnooze: true,
       },
     });
 
@@ -49,6 +50,7 @@ describe("MessageContextMenu", () => {
     expect(text).toContain("Forward");
     expect(text).toContain("Mark as read");
     expect(text).toContain("Archive");
+    expect(text).toContain("Snooze");
     expect(text).toContain("Delete");
 
     const menu = document.body.querySelector("[role='menu']");
@@ -64,6 +66,12 @@ describe("MessageContextMenu", () => {
     label?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     await wrapper.vm.$nextTick();
     expect(document.body.textContent).toContain("Billing");
+    const snooze = [...(menu?.querySelectorAll("button") ?? [])].find((button) =>
+      button.textContent?.includes("Snooze"),
+    );
+    snooze?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await wrapper.vm.$nextTick();
+    expect(document.body.textContent).toContain("Tomorrow");
 
     await wrapper.setProps({ draft: true });
     expect(document.body.textContent).not.toContain("Reply");

@@ -21,6 +21,7 @@ export interface DeskFolder {
   name: string;
   color: LabelTone | null;
   unread: number;
+  wakeAt: string | null;
 }
 
 export interface MessagePage {
@@ -81,6 +82,7 @@ interface FolderJson {
   name: string;
   color: string | null;
   unread: number;
+  wake_at?: string | null;
 }
 
 interface LabelJson {
@@ -158,6 +160,7 @@ function folderFrom(raw: FolderJson): DeskFolder {
     name: raw.name,
     color: toneOf(raw.color),
     unread: raw.unread,
+    wakeAt: raw.wake_at ?? null,
   };
 }
 
@@ -223,12 +226,13 @@ export async function changeMessages(
   mailboxId: string,
   body: {
     ids: string[];
-    action: "read" | "star" | "move" | "trash" | "label" | "unlabel";
+    action: "read" | "star" | "move" | "trash" | "label" | "unlabel" | "snooze";
     read?: boolean;
     starred?: boolean;
     folderId?: string;
     systemKey?: string;
     labelId?: string;
+    snoozedUntil?: string | null;
   },
 ): Promise<void> {
   await http.post(`/api/v1/mailboxes/${mailboxId}/messages`, {
@@ -239,6 +243,7 @@ export async function changeMessages(
     folder_id: body.folderId,
     system_key: body.systemKey,
     label_id: body.labelId,
+    snoozed_until: body.action === "snooze" ? (body.snoozedUntil ?? null) : undefined,
   });
 }
 
