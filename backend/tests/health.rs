@@ -42,6 +42,27 @@ async fn health_reports_liveness_without_a_database() {
 }
 
 #[tokio::test]
+async fn brand_reports_the_install_identity() {
+    let response = test_app()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/brand")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = json_body(response).await;
+    assert_eq!(body["data"]["name"], "Mail");
+    assert_eq!(body["data"]["company"], "");
+    assert_eq!(body["data"]["domain"], "kamfany.com");
+    assert_eq!(body["data"]["public_url"], "");
+    assert_eq!(body["data"]["logo_url"], "");
+}
+
+#[tokio::test]
 async fn ready_is_unavailable_without_a_database() {
     let response = test_app()
         .oneshot(

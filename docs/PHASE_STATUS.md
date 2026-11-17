@@ -3,6 +3,8 @@
 **Current phase:** 8 — Security and production  
 **State:** Built. Not deployed. Waiting for approval before any server install, DNS change, or MX change.
 
+The desk name, company, public URL, logo, and sending domain are install settings (`BRAND_NAME`, `BRAND_COMPANY`, `APP_PUBLIC_URL`, `BRAND_LOGO_URL`, `RESEND_SENDING_DOMAIN`). `GET /api/v1/brand` is public. A missing name falls back to `Mail`. Production requires an explicit sending domain. This is still one organization per deployment.
+
 ## Delivered
 
 Sign-in, password reset, webhook intake, sending, and uploads are counted in PostgreSQL. A full bucket returns 429. The sign-in budget uses the connecting address. The existing account lock still applies to a password.

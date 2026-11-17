@@ -1,4 +1,4 @@
-//! KAMFANY Mail API.
+//! Company mail API. The install name, company, logo, and sending domain come from configuration.
 //!
 //! Browsers talk only to this service. Provider credentials and Resend payloads
 //! stay inside `providers`.

@@ -234,7 +234,7 @@ async fn load_source(
             .mailbox_address
             .split_once('@')
             .map(|(_, domain)| domain)
-            .unwrap_or("kamfany.mail");
+            .unwrap_or(state.config.resend.sending_domain.as_str());
         format!("<{message_id}@{domain}>")
     });
     if row.message_id_header.is_none() {

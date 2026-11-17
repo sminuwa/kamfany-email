@@ -11,6 +11,7 @@ import { RouterLink, useRouter } from "vue-router";
 import { computed, ref } from "vue";
 import { useRailCollapsed } from "../../composables/useRail";
 import { useAuthStore } from "../../stores/auth";
+import { useBrandStore } from "../../stores/brand";
 import { useMailboxStore } from "../../stores/mailboxes";
 import { useMailStore } from "../../stores/messages";
 import { useNoticeStore } from "../../stores/notices";
@@ -20,6 +21,7 @@ import { useUiStore } from "../../stores/ui";
 import MenuPanel from "../common/MenuPanel.vue";
 import ThemeMenu from "./ThemeMenu.vue";
 
+const brand = useBrandStore();
 const router = useRouter();
 const ui = useUiStore();
 const mail = useMailStore();
@@ -303,7 +305,7 @@ function navigationLabel() {
           Search with Ctrl K or Command K. Esc closes an open menu.
         </p>
         <p class="max-w-64 px-2.5 pb-2 text-sm leading-relaxed text-muted">
-          KAMFANY Mail for IT KAMFANY LIMITED.
+          {{ brand.byline }}
         </p>
       </MenuPanel>
 

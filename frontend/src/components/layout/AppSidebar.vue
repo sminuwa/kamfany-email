@@ -17,6 +17,7 @@ import type { Component } from "vue";
 import { computed, ref } from "vue";
 import { useRailCollapsed } from "../../composables/useRail";
 import { useAuthStore } from "../../stores/auth";
+import { useBrandStore } from "../../stores/brand";
 import { useMailStore } from "../../stores/messages";
 import { useUiStore } from "../../stores/ui";
 import type { LabelTone } from "../../types/mail";
@@ -25,6 +26,7 @@ import AccountNav from "./AccountNav.vue";
 import BrandMark from "../common/BrandMark.vue";
 import MenuPanel from "../common/MenuPanel.vue";
 
+const brand = useBrandStore();
 const ui = useUiStore();
 const mail = useMailStore();
 const auth = useAuthStore();
@@ -115,7 +117,7 @@ const icons: Record<string, Component> = {
           v-show="!railCollapsed"
           class="truncate text-[15px] font-semibold tracking-[-0.02em]"
         >
-          KAMFANY Mail
+          {{ brand.name }}
         </p>
       </div>
 

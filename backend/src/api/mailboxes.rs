@@ -297,4 +297,3 @@ fn view_from(row: MailboxRow, platform: bool) -> MailboxView {
         created_at: row.created_at,
     }
 }
-

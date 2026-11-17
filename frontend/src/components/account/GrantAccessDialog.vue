@@ -4,12 +4,14 @@ import { onKeyStroke } from "@vueuse/core";
 import { computed, nextTick, ref, watch } from "vue";
 import { field } from "../../pages/auth/account-form";
 import { errorMessage } from "../../services/http";
+import { useBrandStore } from "../../stores/brand";
 import { useMailboxStore } from "../../stores/mailboxes";
 
 const open = defineModel<boolean>({ required: true });
 const props = defineProps<{ mailboxId: string }>();
 const emit = defineEmits<{ granted: [message: string] }>();
 
+const brand = useBrandStore();
 const boxes = useMailboxStore();
 const dialog = ref<HTMLElement | null>(null);
 const emailInput = ref<HTMLInputElement | null>(null);
@@ -122,7 +124,7 @@ async function submit() {
             v-model="grantEmail"
             type="email"
             required
-            placeholder="person@kamfany.com"
+            :placeholder="brand.personHint"
             :class="[field, 'bg-canvas']"
             aria-label="Person email"
           />

@@ -1,6 +1,6 @@
 # Architecture
 
-KAMFANY Mail is a company desk for addresses owned by IT KAMFANY LIMITED. Staff send, read, and organize mail. The product has to feel as capable as a modern webmail client, with its own identity, and it must not pretend the email provider is a traditional mailbox.
+This is a company mail desk that rides on Resend. One deployment serves one organization. The product name, company, public address, logo, and sending domain come from the API environment, and the desk reads them from `GET /api/v1/brand`. Staff send, read, and organize mail. The product has to feel as capable as a modern webmail client, with its own identity, and it must not pretend the email provider is a traditional mailbox.
 
 ## Shape
 

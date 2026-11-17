@@ -15,6 +15,7 @@ import {
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useTheme } from "../../composables/useTheme";
+import { useBrandStore } from "../../stores/brand";
 import { useMailStore } from "../../stores/messages";
 import { useUiStore } from "../../stores/ui";
 import type { MailMessage, OrganizationalFolder } from "../../types/mail";
@@ -33,6 +34,7 @@ const emit = defineEmits<{
   close: [];
 }>();
 
+const brand = useBrandStore();
 const mail = useMailStore();
 const ui = useUiStore();
 const route = useRoute();
@@ -221,7 +223,7 @@ function openThread(id: string) {
     </div>
 
     <div class="print-sheet px-8 py-6">
-      <p class="text-xs font-semibold tracking-[0.04em]">KAMFANY Mail</p>
+      <p class="text-xs font-semibold tracking-[0.04em]">{{ brand.name }}</p>
       <h1 class="mt-3 text-2xl font-semibold tracking-[-0.02em]">{{ message.subject }}</h1>
       <p class="mt-4 font-semibold">{{ message.from.name }}</p>
       <p class="text-sm">{{ message.from.email }}</p>

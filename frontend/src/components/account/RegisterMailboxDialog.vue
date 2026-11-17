@@ -3,12 +3,14 @@ import { X } from "@lucide/vue";
 import { onKeyStroke } from "@vueuse/core";
 import { nextTick, ref, watch } from "vue";
 import { errorMessage } from "../../services/http";
+import { useBrandStore } from "../../stores/brand";
 import { useMailboxStore } from "../../stores/mailboxes";
 import { field } from "../../pages/auth/account-form";
 
 const open = defineModel<boolean>({ required: true });
 const emit = defineEmits<{ registered: [message: string] }>();
 
+const brand = useBrandStore();
 const boxes = useMailboxStore();
 const dialog = ref<HTMLElement | null>(null);
 const nameInput = ref<HTMLInputElement | null>(null);
@@ -113,7 +115,7 @@ async function submit() {
             v-model="mailboxAddress"
             type="email"
             required
-            placeholder="name@kamfany.com"
+            :placeholder="brand.addressHint"
             :class="[field, 'bg-canvas']"
             aria-label="Mailbox address"
           />

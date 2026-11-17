@@ -379,7 +379,12 @@ pub async fn forgot_password(
     let (Some(pool), Some(provider), Some(origin)) = (
         pool_of(&state).ok(),
         state.provider.as_ref(),
-        public_origin(&state.config.cors_origins),
+        state
+            .config
+            .brand
+            .public_url
+            .as_deref()
+            .or_else(|| public_origin(&state.config.cors_origins)),
     ) else {
         return Ok(notice(RESET_LATER));
     };
@@ -418,6 +423,7 @@ pub async fn forgot_password(
         let link = format!("{origin}/reset-password?token={token}");
         if let Err(error) = provider
             .send_email(&reset_mail(
+                &state.config.brand.name,
                 &state.config.resend.sending_domain,
                 &email,
                 &link,
@@ -521,17 +527,17 @@ fn public_origin(origins: &[String]) -> Option<&str> {
         .map(String::as_str)
 }
 
-fn reset_mail(domain: &str, email: &str, link: &str, reset_id: Uuid) -> OutboundEmail {
+fn reset_mail(brand: &str, domain: &str, email: &str, link: &str, reset_id: Uuid) -> OutboundEmail {
     let text = format!(
         "A password reset was requested for {email}.\n\nOpen this link within {RESET_MINUTES} minutes:\n{link}\n\nIf you did not ask for this, ignore the message. The password stays the same.\n"
     );
     OutboundEmail {
-        from_name: "KAMFANY Mail".to_string(),
+        from_name: brand.to_string(),
         from_address: format!("noreply@{domain}"),
         to: vec![email.to_string()],
         cc: Vec::new(),
         bcc: Vec::new(),
-        subject: "Reset your KAMFANY Mail password".to_string(),
+        subject: format!("Reset your {brand} password"),
         text: Some(text),
         html: None,
         idempotency_key: reset_id.to_string(),

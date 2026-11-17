@@ -16,6 +16,7 @@ const emit = defineEmits<{
   open: [];
   toggle: [];
   star: [];
+  menu: [event: MouseEvent];
 }>();
 
 const toneClass: Record<LabelTone, string> = {
@@ -37,6 +38,7 @@ const chips = computed(() =>
     :aria-selected="open"
     tabindex="0"
     @click="emit('open')"
+    @contextmenu.prevent="emit('menu', $event)"
     @keydown.enter.prevent="emit('open')"
     @keydown.space.prevent="emit('open')"
   >

@@ -1,7 +1,7 @@
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::auth::{hash_password, normalize_email, password_policy};
+use crate::auth::{display_name, hash_password, normalize_email, password_policy};
 use crate::config::{AppConfig, Environment};
 
 const ROLE_OWNER: Uuid = uuid::uuid!("10000000-0000-4000-8000-000000000001");
@@ -40,15 +40,26 @@ pub async fn ensure_dev_admin(pool: &PgPool, config: &AppConfig) -> anyhow::Resu
         id
     } else {
         let hash = hash_password(&password).map_err(|_| anyhow::anyhow!("password hash failed"))?;
+        let raw_name = std::env::var("BOOTSTRAP_ADMIN_NAME")
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| {
+                email
+                    .split_once('@')
+                    .map(|(local, _)| local.to_string())
+                    .unwrap_or_else(|| "Owner".to_string())
+            });
+        let name = display_name(&raw_name).unwrap_or_else(|_| "Owner".to_string());
         let id = sqlx::query_scalar::<_, Uuid>(
             r#"
             INSERT INTO users (email, password_hash, display_name)
-            VALUES ($1, $2, 'Adaeze Okonkwo')
+            VALUES ($1, $2, $3)
             RETURNING id
             "#,
         )
         .bind(&email)
         .bind(hash)
+        .bind(name)
         .fetch_one(pool)
         .await?;
         sqlx::query("INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)")

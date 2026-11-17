@@ -3,9 +3,11 @@ import { Paperclip, X } from "@lucide/vue";
 import { ref } from "vue";
 import RichEditor from "../compose/RichEditor.vue";
 import { useComposer } from "../../composables/useComposer";
+import { useBrandStore } from "../../stores/brand";
 import { formatFileSize, scanNote } from "../../utils/format-mail";
 import SignatureDialog from "./SignatureDialog.vue";
 
+const brand = useBrandStore();
 const composer = useComposer();
 const signatureOpen = ref(false);
 const fieldClass =
@@ -44,7 +46,7 @@ function onFiles(event: Event) {
           id="compose-to"
           v-model="composer.to"
           required
-          placeholder="name@kamfany.com"
+          :placeholder="brand.addressHint"
           class="h-10"
           :class="[fieldClass, composer.showCc && composer.showBcc ? '' : 'pr-24']"
           autocomplete="off"
@@ -88,7 +90,7 @@ function onFiles(event: Event) {
         Cc
         <input
           v-model="composer.cc"
-          placeholder="name@kamfany.com"
+          :placeholder="brand.addressHint"
           class="h-10"
           :class="fieldClass"
           autocomplete="off"
@@ -110,7 +112,7 @@ function onFiles(event: Event) {
         Bcc
         <input
           v-model="composer.bcc"
-          placeholder="name@kamfany.com"
+          :placeholder="brand.addressHint"
           class="h-10"
           :class="fieldClass"
           autocomplete="off"

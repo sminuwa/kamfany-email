@@ -74,6 +74,10 @@ RESEND_API_KEY=
 RESEND_WEBHOOK_SECRET=
 RESEND_API_BASE=https://api.resend.com
 RESEND_SENDING_DOMAIN=kamfany.com
+BRAND_NAME="KAMFANY Mail"
+BRAND_COMPANY="IT KAMFANY LIMITED"
+APP_PUBLIC_URL=https://mail.kamfany.com
+BRAND_LOGO_URL=
 CLAMAV_ADDRESS=
 ```
 
@@ -89,6 +93,7 @@ mkdir -p /var/lib/kamfany-mail/storage
 
 ```text
 BOOTSTRAP_ADMIN_EMAIL=adaeze@kamfany.com
+BOOTSTRAP_ADMIN_NAME="Adaeze Okonkwo"
 BOOTSTRAP_ADMIN_PASSWORD=a-password-of-at-least-8-characters
 ```
 

@@ -11,6 +11,7 @@ import SessionsView from "../pages/auth/SessionsView.vue";
 import ContactsView from "../pages/contacts/ContactsView.vue";
 import DeskView from "../pages/mail/DeskView.vue";
 import { useAuthStore } from "../stores/auth";
+import { useBrandStore } from "../stores/brand";
 import { useMailboxStore } from "../stores/mailboxes";
 import { folderByKey, systemFolders } from "../utils/folders";
 
@@ -128,5 +129,6 @@ router.beforeEach(async (to) => {
 router.afterEach((to) => {
   const folder = to.meta.folder ? folderByKey(to.meta.folder) : undefined;
   const title = to.meta.title ?? folder?.label;
-  document.title = title ? `${title} · KAMFANY Mail` : "KAMFANY Mail";
+  const brand = useBrandStore().name;
+  document.title = title ? `${title} · ${brand}` : brand;
 });

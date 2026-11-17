@@ -1,6 +1,6 @@
 # KAMFANY Mail
 
-Company webmail for IT KAMFANY LIMITED. The desk will live at `mail.kamfany.com`.
+Company webmail on the Resend API. One deployment serves one organization. The desk name, company, public URL, logo, and sending domain are set in the API environment.
 
 The browser talks only to the Rust API. The API will talk to Resend. Provider credentials never go to the frontend.
 

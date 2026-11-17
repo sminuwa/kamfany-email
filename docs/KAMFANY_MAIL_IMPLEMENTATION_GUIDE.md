@@ -206,13 +206,19 @@ Use a centralized design token system for colors, spacing, typography, borders, 
 
 ### Application identity
 
+The product name, company, public URL, logo, and sending domain are configuration for a single install. They are not hardcoded in the desk. `GET /api/v1/brand` is the public source the browser reads.
+
+Sample install:
+
 Brand: KAMFANY Mail
 
 Company: IT KAMFANY LIMITED
 
 Primary URL: `mail.kamfany.com`
 
-Create a clean, professional logo treatment and application icon.
+Sending domain: `kamfany.com`
+
+Use a clean mark when `BRAND_LOGO_URL` is empty. A configured logo replaces that mark.
 
 # 5. Main Application Layout
 
@@ -227,8 +233,8 @@ The main interface should consist of:
 
 ### Brand section
 
-- KAMFANY Mail logo.
-- Product name.
+- Configured product mark.
+- Configured product name.
 - Mailbox/account selector.
 
 ### Compose action
@@ -1240,7 +1246,7 @@ KAMFANY Mail should become a reliable, secure, company-owned webmail platform.
 
 The first release should serve IT KAMFANY LIMITED's internal email management requirements.
 
-The architecture should allow future expansion into a multi-tenant email management platform for other organizations.
+One install is configured for one organization through `BRAND_NAME`, `BRAND_COMPANY`, `APP_PUBLIC_URL`, `BRAND_LOGO_URL`, and `RESEND_SENDING_DOMAIN`. The architecture should allow future expansion into a multi-tenant email management platform for other organizations.
 
 Potential future capabilities:
 

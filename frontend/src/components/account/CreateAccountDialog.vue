@@ -5,11 +5,13 @@ import { nextTick, ref, watch } from "vue";
 import { field } from "../../pages/auth/account-form";
 import { errorMessage } from "../../services/http";
 import { useAuthStore } from "../../stores/auth";
+import { useBrandStore } from "../../stores/brand";
 
 const open = defineModel<boolean>({ required: true });
 const emit = defineEmits<{ created: [email: string] }>();
 
 const auth = useAuthStore();
+const brand = useBrandStore();
 const dialog = ref<HTMLElement | null>(null);
 const nameInput = ref<HTMLInputElement | null>(null);
 const personEmail = ref("");
@@ -124,7 +126,7 @@ async function submit() {
             v-model="personEmail"
             type="email"
             required
-            placeholder="name@kamfany.com"
+            :placeholder="brand.addressHint"
             :class="[field, 'bg-canvas']"
             aria-label="Mailbox address"
           />

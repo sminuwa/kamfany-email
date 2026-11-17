@@ -21,7 +21,7 @@ describe("AppSidebar", () => {
     });
     await router.isReady();
 
-    expect(wrapper.text()).toContain("KAMFANY Mail");
+    expect(wrapper.text()).toContain("Mail");
     expect(wrapper.text()).toContain("Compose");
     for (const folder of systemFolders) {
       expect(wrapper.text()).toContain(folder.label);

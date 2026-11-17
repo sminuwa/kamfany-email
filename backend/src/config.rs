@@ -12,9 +12,19 @@ pub struct AppConfig {
     pub database_url: Option<String>,
     pub cors_origins: Vec<String>,
     pub log_format: LogFormat,
+    pub brand: BrandConfig,
     pub resend: ResendConfig,
     pub storage: StorageConfig,
     pub scanner: Option<String>,
+}
+
+/// One install, one organization. The desk reads these instead of a fixed company name.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BrandConfig {
+    pub name: String,
+    pub company: String,
+    pub public_url: Option<String>,
+    pub logo_url: Option<String>,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -117,6 +127,7 @@ impl AppConfig {
                 .unwrap_or_else(|| "pretty".to_string())
                 .trim(),
         )?;
+        let sending_domain = blank(lookup("RESEND_SENDING_DOMAIN"));
         let resend = ResendConfig {
             api_key: blank(lookup("RESEND_API_KEY")),
             webhook_secret: blank(lookup("RESEND_WEBHOOK_SECRET")),
@@ -124,12 +135,9 @@ impl AppConfig {
                 .map(|value| value.trim().trim_end_matches('/').to_string())
                 .filter(|value| !value.is_empty())
                 .unwrap_or_else(|| "https://api.resend.com".to_string()),
-            sending_domain: normalize_domain(
-                lookup("RESEND_SENDING_DOMAIN")
-                    .unwrap_or_else(|| "kamfany.com".to_string())
-                    .trim(),
-            )?,
+            sending_domain: normalize_domain(sending_domain.as_deref().unwrap_or("kamfany.com"))?,
         };
+        let brand = brand_from(&mut lookup)?;
         if !(resend.api_base.starts_with("https://") || resend.api_base.starts_with("http://")) {
             return Err(ConfigError::Invalid("RESEND_API_BASE"));
         }
@@ -144,6 +152,9 @@ impl AppConfig {
         if env == Environment::Production && database_url.is_none() {
             return Err(ConfigError::Missing("DATABASE_URL"));
         }
+        if env == Environment::Production && sending_domain.is_none() {
+            return Err(ConfigError::Missing("RESEND_SENDING_DOMAIN"));
+        }
 
         Ok(Self {
             env,
@@ -152,6 +163,7 @@ impl AppConfig {
             database_url,
             cors_origins,
             log_format,
+            brand,
             resend,
             storage,
             scanner,
@@ -213,6 +225,48 @@ fn storage_from(
     })
 }
 
+fn brand_from(lookup: &mut impl FnMut(&str) -> Option<String>) -> Result<BrandConfig, ConfigError> {
+    let name = match blank(lookup("BRAND_NAME")) {
+        Some(value) => label(&value, "BRAND_NAME", 80)?,
+        None => "Mail".to_string(),
+    };
+    let company = match blank(lookup("BRAND_COMPANY")) {
+        Some(value) => label(&value, "BRAND_COMPANY", 120)?,
+        None => String::new(),
+    };
+    let public_url = match blank(lookup("APP_PUBLIC_URL")) {
+        Some(value) => Some(absolute_url(&value, "APP_PUBLIC_URL")?),
+        None => None,
+    };
+    let logo_url = match blank(lookup("BRAND_LOGO_URL")) {
+        Some(value) => Some(absolute_url(&value, "BRAND_LOGO_URL")?),
+        None => None,
+    };
+    Ok(BrandConfig {
+        name,
+        company,
+        public_url,
+        logo_url,
+    })
+}
+
+fn label(value: &str, key: &'static str, max: usize) -> Result<String, ConfigError> {
+    let text = value.trim();
+    if text.is_empty() || text.chars().count() > max || text.chars().any(char::is_control) {
+        return Err(ConfigError::Invalid(key));
+    }
+    Ok(text.to_string())
+}
+
+fn absolute_url(value: &str, key: &'static str) -> Result<String, ConfigError> {
+    let url = value.trim().trim_end_matches('/').to_string();
+    let scheme_ok = url.starts_with("https://") || url.starts_with("http://");
+    if !scheme_ok || url.len() <= "https://".len() || url.contains(char::is_whitespace) {
+        return Err(ConfigError::Invalid(key));
+    }
+    Ok(url)
+}
+
 fn blank(value: Option<String>) -> Option<String> {
     value
         .map(|item| item.trim().to_string())
@@ -265,6 +319,11 @@ mod tests {
         assert_eq!(config.port, 8080);
         assert_eq!(config.database_url, None);
         assert_eq!(config.log_format, LogFormat::Pretty);
+        assert_eq!(config.brand.name, "Mail");
+        assert_eq!(config.brand.company, "");
+        assert_eq!(config.brand.public_url, None);
+        assert_eq!(config.brand.logo_url, None);
+        assert_eq!(config.resend.sending_domain, "kamfany.com");
         assert_eq!(
             config.cors_origins,
             vec![
@@ -305,9 +364,20 @@ mod tests {
             "APP_ENV" => Some("production".to_string()),
             "DATABASE_URL" => Some("postgres://mail@db/kamfany".to_string()),
             "LOG_FORMAT" => Some("json".to_string()),
+            "RESEND_SENDING_DOMAIN" => Some("example.com".to_string()),
+            "BRAND_NAME" => Some("Example Mail".to_string()),
+            "BRAND_COMPANY" => Some("Example Ltd".to_string()),
+            "APP_PUBLIC_URL" => Some("https://mail.example.com/".to_string()),
             _ => None,
         })
         .expect("config");
+        assert_eq!(config.brand.name, "Example Mail");
+        assert_eq!(config.brand.company, "Example Ltd");
+        assert_eq!(
+            config.brand.public_url.as_deref(),
+            Some("https://mail.example.com")
+        );
+        assert_eq!(config.resend.sending_domain, "example.com");
         assert_eq!(config.env, Environment::Production);
         assert_eq!(
             config.database_url.as_deref(),
@@ -328,6 +398,27 @@ mod tests {
         assert!(!rendered.contains("re_example_not_a_real_key"));
         assert!(!rendered.contains("whsec_example"));
         assert!(rendered.contains("kamfany.com"));
+    }
+
+    #[test]
+    fn production_requires_a_sending_domain() {
+        let error = AppConfig::from_lookup(|key| match key {
+            "APP_ENV" => Some("production".to_string()),
+            "DATABASE_URL" => Some("postgres://mail@db/mail".to_string()),
+            _ => None,
+        })
+        .expect_err("production without a sending domain");
+        assert_eq!(error, ConfigError::Missing("RESEND_SENDING_DOMAIN"));
+    }
+
+    #[test]
+    fn brand_rejects_a_logo_that_is_not_a_url() {
+        let error = AppConfig::from_lookup(|key| match key {
+            "BRAND_LOGO_URL" => Some("logo.svg".to_string()),
+            _ => None,
+        })
+        .expect_err("relative logo");
+        assert_eq!(error, ConfigError::Invalid("BRAND_LOGO_URL"));
     }
 
     #[test]

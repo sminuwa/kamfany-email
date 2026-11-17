@@ -12,6 +12,7 @@ use crate::api::auth::{
     change_password, forgot_password, login, logout, me, refresh, reset_password, revoke_session,
     sessions, update_me,
 };
+use crate::api::brand::brand;
 use crate::api::browser::require_browser;
 use crate::api::compose::{
     add_draft, add_file, add_signature, discard_draft, discard_file, discard_signature,
@@ -49,6 +50,7 @@ pub fn router(state: AppState) -> Result<Router, ConfigError> {
     let http = Router::new()
         .route("/api/v1/health", get(health))
         .route("/api/v1/ready", get(ready))
+        .route("/api/v1/brand", get(brand))
         .route("/api/v1/webhooks/resend", post(resend_webhook))
         .merge(browser)
         .layer(DefaultBodyLimit::max(11 * 1024 * 1024))

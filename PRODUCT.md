@@ -12,11 +12,11 @@ Vue 3 + TypeScript + Vite frontend. Rust + Axum + SQLx backend. PostgreSQL. Rese
 
 ## Users
 
-Authorized staff of IT KAMFANY LIMITED, working at a desk in a browser, sending and reading company-owned mailboxes. Shared mailbox access is part of the product. The first release is internal. Multi-organization use is a later expansion, not part of this build.
+Authorized staff of one company, working at a desk in a browser, sending and reading that company's mailboxes. Shared mailbox access is part of the product. One deployment is one organization. Multi-organization use is a later expansion, not part of this build.
 
 ## Product Purpose
 
-KAMFANY Mail is the company mailbox at mail.kamfany.com. It exists so IT KAMFANY LIMITED can manage its own addresses in one place: send, receive, reply, forward, file, and search. Success for the first release is a stable desk for those internal addresses.
+The desk is a company mailbox for whichever organization the install is configured for. It exists so that organization can manage its own addresses in one place: send, receive, reply, forward, file, and search. Success for the first release is a stable desk for those addresses.
 
 ## Positioning
 
@@ -41,7 +41,7 @@ Constraints that bind the build:
 
 ## Brand Commitments
 
-Name: KAMFANY Mail. Company: IT KAMFANY LIMITED. Address: mail.kamfany.com. Voice: simple, elegant, secure, and productive. The interface must be its own, not a copy of Gmail or Outlook. Binding visual constraints from the brief: minimalist layout, consistent spacing, subtle borders, soft shadows, rounded corners, professional type, hover and motion with restraint, responsive layout, light and dark and system themes, and one token system for color, space, type, borders, and shadow.
+Name, company, public URL, logo, and sending domain come from the API environment. The KAMFANY values are one install's settings, not literals in the interface. Voice: simple, elegant, secure, and productive. The interface must be its own, not a copy of Gmail or Outlook. Binding visual constraints from the brief: minimalist layout, consistent spacing, subtle borders, soft shadows, rounded corners, professional type, hover and motion with restraint, responsive layout, light and dark and system themes, and one token system for color, space, type, borders, and shadow.
 
 ## Evidence on Hand
 

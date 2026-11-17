@@ -1,11 +1,30 @@
+<script setup lang="ts">
+import { useBrandStore } from "../../stores/brand";
+
+const brand = useBrandStore();
+</script>
+
 <template>
-  <svg viewBox="0 0 32 32" aria-hidden="true" class="block">
+  <img
+    v-if="brand.logoUrl"
+    :src="brand.logoUrl"
+    alt=""
+    class="block size-full rounded-lg object-cover"
+  />
+  <svg v-else viewBox="0 0 32 32" aria-hidden="true" class="block">
     <rect width="32" height="32" rx="8" fill="#F2C14E" />
     <path
-      d="M10.5 7.5v17M10.5 16.1 22 8M10.5 16.1 22 24.2"
+      d="M8 12.2h16v10.2H8z"
       fill="none"
       stroke="#1A1408"
-      stroke-width="2.4"
+      stroke-width="2.2"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M8.4 12.6 16 18.4 23.6 12.6"
+      fill="none"
+      stroke="#1A1408"
+      stroke-width="2.2"
       stroke-linecap="round"
       stroke-linejoin="round"
     />

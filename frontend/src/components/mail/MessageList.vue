@@ -5,10 +5,12 @@ import { useRoute, useRouter } from "vue-router";
 import { useMailboxStore } from "../../stores/mailboxes";
 import { useMailStore } from "../../stores/messages";
 import { useUiStore } from "../../stores/ui";
-import type { LabelTone, OrganizationalFolder } from "../../types/mail";
+import type { ComposeKind, LabelTone, MailMessage, OrganizationalFolder } from "../../types/mail";
 import { folderByKey } from "../../utils/folders";
 import { filterMessages, PAGE_SIZE } from "../../utils/mail-query";
+import { filingAction, readActions, starAction } from "../../utils/message-menu";
 import LabelMenu from "./LabelMenu.vue";
+import MessageContextMenu from "./MessageContextMenu.vue";
 import MessageRow from "./MessageRow.vue";
 import MoveMenu from "./MoveMenu.vue";
 
@@ -23,6 +25,7 @@ const mail = useMailStore();
 const boxes = useMailboxStore();
 const limit = ref(PAGE_SIZE);
 const allBox = ref<HTMLInputElement | null>(null);
+const menu = ref<{ id: string; x: number; y: number } | null>(null);
 const folderName = ref("");
 const folderColor = ref<LabelTone | null>("brass");
 const labelName = ref("");
@@ -109,6 +112,27 @@ const filingLabel = computed(() =>
     : "Archive",
 );
 
+const menuMessage = computed(
+  () => filtered.value.find((message) => message.id === menu.value?.id) ?? null,
+);
+const menuTargets = computed(() => {
+  if (!menuMessage.value) {
+    return [];
+  }
+  if (mail.selectedIds.includes(menuMessage.value.id)) {
+    return selectedInView.value;
+  }
+  return [menuMessage.value];
+});
+const menuFiling = computed(() => filingAction(menuTargets.value));
+const menuStar = computed(() => starAction(menuTargets.value));
+const menuRead = computed(() => readActions(menuTargets.value));
+const menuFolders = computed(() =>
+  mail.folders
+    .filter((item) => !item.systemKey)
+    .map((item) => ({ id: item.id, name: item.name })),
+);
+
 watch(
   () =>
     [
@@ -121,6 +145,7 @@ watch(
     ].join("|"),
   () => {
     limit.value = PAGE_SIZE;
+    menu.value = null;
   },
 );
 
@@ -137,6 +162,75 @@ watchEffect(() => {
     allBox.value.indeterminate = someSelected.value;
   }
 });
+
+function openMenu(message: MailMessage, event: MouseEvent) {
+  if (!mail.selectedIds.includes(message.id)) {
+    mail.selectAll([message.id]);
+  }
+  menu.value = { id: message.id, x: event.clientX, y: event.clientY };
+}
+
+function menuIds(): string[] {
+  return menuTargets.value.map((message) => message.id);
+}
+
+function closeMenu() {
+  menu.value = null;
+}
+
+function openFromMenu() {
+  const id = menu.value?.id;
+  closeMenu();
+  if (id) {
+    emit("open", id);
+  }
+}
+
+function replyFromMenu(kind: ComposeKind) {
+  const id = menu.value?.id;
+  closeMenu();
+  if (id) {
+    ui.openComposer({ kind, messageId: id, draftId: null });
+  }
+}
+
+function readFromMenu(read: boolean) {
+  const ids = menuIds();
+  closeMenu();
+  void mail.setRead(ids, read);
+}
+
+function starFromMenu() {
+  const ids = menuIds();
+  const starred = menuStar.value.starred;
+  closeMenu();
+  void mail.setStar(ids, starred);
+}
+
+function fileFromMenu() {
+  const ids = menuIds();
+  const target = menuFiling.value.target;
+  closeMenu();
+  void mail.moveTo(ids, target);
+}
+
+function moveFromMenu(target: string) {
+  const ids = menuIds();
+  closeMenu();
+  void mail.moveTo(ids, target);
+}
+
+function labelFromMenu(id: string) {
+  const ids = menuIds();
+  closeMenu();
+  void mail.addLabel(ids, id);
+}
+
+function deleteFromMenu() {
+  const ids = menuIds();
+  closeMenu();
+  void mail.deleteMessages(ids);
+}
 
 function onSelectAll(event: Event) {
   const checked = (event.target as HTMLInputElement).checked;
@@ -214,7 +308,7 @@ watch(activeLabel, (label) => {
           aria-label="Select all"
           @change="onSelectAll"
         />
-        <div class="flex min-w-0 flex-1 items-center gap-2">
+        <div class="flex min-w-0 flex-1 items-baseline gap-2">
           <h1 class="truncate text-2xl font-semibold tracking-[-0.03em]">{{ heading }}</h1>
           <p
             class="text-sm text-muted"
@@ -291,7 +385,12 @@ watch(activeLabel, (label) => {
       </div>
     </header>
 
-    <div class="min-h-0 flex-1 overflow-y-auto rounded-b-panel" role="listbox" :aria-label="`${folder.label} messages`">
+    <div
+      class="min-h-0 flex-1 overflow-y-auto rounded-b-panel"
+      role="listbox"
+      :aria-label="`${folder.label} messages`"
+      @scroll="closeMenu"
+    >
       <div v-if="filtered.length === 0" class="grid h-full place-items-center px-6 py-16 text-center">
         <div class="max-w-[36ch]">
           <p class="text-base font-semibold">{{ emptyTitle }}</p>
@@ -309,6 +408,7 @@ watch(activeLabel, (label) => {
           @open="emit('open', message.id)"
           @toggle="mail.toggleSelected(message.id)"
           @star="mail.toggleStar(message.id)"
+          @menu="openMenu(message, $event)"
         />
         <div v-if="visible.length < filtered.length || mail.nextCursor" class="p-3">
           <button
@@ -321,5 +421,28 @@ watch(activeLabel, (label) => {
         </div>
       </template>
     </div>
+    <MessageContextMenu
+      v-if="menu && menuMessage"
+      :x="menu.x"
+      :y="menu.y"
+      :subject="menuMessage.subject"
+      :count="menuTargets.length"
+      :draft="menuMessage.status === 'draft'"
+      :filing-label="menuFiling.label"
+      :filing-target="menuFiling.target"
+      :star-label="menuStar.label"
+      :read-actions="menuRead"
+      :folders="menuFolders"
+      :labels="mail.labels"
+      @close="closeMenu"
+      @open="openFromMenu"
+      @reply="replyFromMenu"
+      @read="readFromMenu"
+      @star="starFromMenu"
+      @file="fileFromMenu"
+      @move="moveFromMenu"
+      @label="labelFromMenu"
+      @remove="deleteFromMenu"
+    />
   </section>
 </template>

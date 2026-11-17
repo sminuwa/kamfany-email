@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
 import BrandMark from "../common/BrandMark.vue";
+import { useBrandStore } from "../../stores/brand";
 import ThemeMenu from "./ThemeMenu.vue";
+
+const brand = useBrandStore();
 </script>
 
 <template>
@@ -13,7 +16,7 @@ import ThemeMenu from "./ThemeMenu.vue";
       <div class="auth-gate w-full max-w-[24.5rem]">
         <RouterLink to="/" class="mb-8 flex items-center justify-center gap-3 text-ink">
           <BrandMark class="size-11" />
-          <span class="text-[1.35rem] font-semibold tracking-[-0.03em]">KAMFANY Mail</span>
+          <span class="text-[1.35rem] font-semibold tracking-[-0.03em]">{{ brand.name }}</span>
         </RouterLink>
         <div class="km-card px-6 py-7 sm:px-8 sm:py-8">
           <slot />

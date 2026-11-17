@@ -215,7 +215,7 @@ impl ResendClient {
                 format!("Bearer {}", self.key),
             )
             .header(reqwest::header::ACCEPT, "application/json")
-            .header(reqwest::header::USER_AGENT, "kamfany-mail/0.1");
+            .header(reqwest::header::USER_AGENT, "mail-desk/0.1");
         if let Some(key) = idempotency_key {
             request = request.header("Idempotency-Key", key);
         }
