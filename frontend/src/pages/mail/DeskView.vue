@@ -59,7 +59,7 @@ watch(
 </script>
 
 <template>
-  <div class="desk-grid grid h-full min-h-0 grid-cols-1 gap-3 min-[960px]:grid-cols-[minmax(280px,0.92fr)_minmax(0,1.15fr)]">
+  <div class="desk-grid grid h-full min-h-0 grid-cols-1 gap-3 min-[960px]:grid-cols-[340px_minmax(0,1fr)]">
     <MessageList v-show="showList" class="km-card overflow-hidden" @open="openMessage" />
     <section v-show="showReader" class="km-card flex h-full min-h-0 flex-col overflow-hidden" aria-label="Reading pane">
       <ComposerSheet v-if="ui.composerOpen" />

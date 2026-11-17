@@ -4,7 +4,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import { TextStyle } from "@tiptap/extension-text-style";
 import StarterKit from "@tiptap/starter-kit";
 import { EditorContent, useEditor } from "@tiptap/vue-3";
-import { watch } from "vue";
+import { computed, watch } from "vue";
 
 const props = defineProps<{
   html: string;
@@ -41,6 +41,8 @@ watch(
     editor.value?.commands.setContent(props.html || "<p></p>", { emitUpdate: false });
   },
 );
+
+const empty = computed(() => props.html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim() === "");
 
 const colors = [
   { name: "Ink", value: "#10211f" },
@@ -95,7 +97,12 @@ function addLink() {
         <span class="size-3 rounded-full" :style="{ backgroundColor: color.value }" />
       </button>
     </div>
-    <EditorContent :editor="editor" />
+    <div class="relative">
+      <p v-if="empty" class="pointer-events-none absolute left-3 top-2 text-[15px] leading-relaxed text-muted">
+        Write your message
+      </p>
+      <EditorContent :editor="editor" />
+    </div>
   </div>
 </template>
 

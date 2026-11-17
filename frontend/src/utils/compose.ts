@@ -10,7 +10,7 @@ export interface PreparedCompose {
   note: string;
 }
 
-const NEW_NOTE = "This sends formatted mail from the mailbox you choose.";
+const NEW_NOTE = "This sends formatted mail from your mailbox.";
 const REPLY_NOTE = "This sends a formatted reply on the same thread.";
 const FORWARD_NOTE = "This sends a formatted forward as a new message.";
 

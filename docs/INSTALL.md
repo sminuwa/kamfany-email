@@ -89,7 +89,7 @@ mkdir -p /var/lib/kamfany-mail/storage
 
 ```text
 BOOTSTRAP_ADMIN_EMAIL=adaeze@kamfany.com
-BOOTSTRAP_ADMIN_PASSWORD=a-password-of-at-least-12-characters
+BOOTSTRAP_ADMIN_PASSWORD=a-password-of-at-least-8-characters
 ```
 
 Start the API once, sign in, then stop it. Set `APP_ENV=production` and remove `BOOTSTRAP_ADMIN_PASSWORD` from the file. A later start does not change that password.

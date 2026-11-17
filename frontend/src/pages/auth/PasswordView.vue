@@ -33,7 +33,7 @@ async function submit() {
   <section class="mx-auto flex min-h-full w-full max-w-md flex-col justify-center">
     <h1 class="text-center text-[2rem] font-semibold leading-tight tracking-[-0.03em]">Change password</h1>
     <p class="mt-3 text-center text-sm leading-relaxed text-muted">
-      12 to 128 characters. Other signed-in sessions on this account end when the password changes.
+      8 to 128 characters. Other signed-in sessions on this account end when the password changes.
       Two-factor sign-in is not available.
     </p>
     <form :class="['mt-8 space-y-3', panel]" @submit.prevent="submit">
@@ -51,7 +51,7 @@ async function submit() {
         type="password"
         autocomplete="new-password"
         required
-        minlength="12"
+        minlength="8"
         maxlength="128"
         placeholder="New password"
         :class="[field, 'bg-canvas']"
@@ -62,7 +62,7 @@ async function submit() {
         type="password"
         autocomplete="new-password"
         required
-        minlength="12"
+        minlength="8"
         maxlength="128"
         placeholder="Confirm new password"
         :class="[field, 'bg-canvas']"

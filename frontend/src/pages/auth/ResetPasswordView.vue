@@ -51,7 +51,7 @@ async function submit() {
           v-model="password"
           type="password"
           autocomplete="new-password"
-          minlength="12"
+          minlength="8"
           maxlength="128"
           required
           :class="['mt-1.5', field]"
@@ -63,7 +63,7 @@ async function submit() {
           v-model="confirm"
           type="password"
           autocomplete="new-password"
-          minlength="12"
+          minlength="8"
           maxlength="128"
           required
           :class="['mt-1.5', field]"

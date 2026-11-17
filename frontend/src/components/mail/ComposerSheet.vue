@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { Paperclip, X } from "@lucide/vue";
+import { ref } from "vue";
 import RichEditor from "../compose/RichEditor.vue";
 import { useComposer } from "../../composables/useComposer";
 import { formatFileSize, scanNote } from "../../utils/format-mail";
+import SignatureDialog from "./SignatureDialog.vue";
 
 const composer = useComposer();
+const signatureOpen = ref(false);
 const fieldClass =
-  "mt-1 w-full rounded-control border border-line bg-canvas px-3 text-sm text-ink";
+  "mt-1 w-full rounded-control border border-line bg-canvas px-3 text-sm text-ink placeholder:text-muted";
 
 function onFiles(event: Event) {
   const input = event.target as HTMLInputElement;
@@ -35,25 +38,40 @@ function onFiles(event: Event) {
     <form class="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4" @submit.prevent="composer.send()">
       <p class="max-w-[52ch] text-sm leading-relaxed text-muted">{{ composer.note }}</p>
       <p v-if="composer.failure" class="mt-3 text-sm text-danger" role="alert">{{ composer.failure }}</p>
-      <label class="mt-4 block text-sm font-medium">
-        From
-        <select v-model="composer.mailboxId" class="h-10" :class="fieldClass" :disabled="Boolean(composer.draftId)">
-          <option v-for="mailbox in composer.senders" :key="mailbox.id" :value="mailbox.id">
-            {{ mailbox.displayName }} · {{ mailbox.address }}
-          </option>
-        </select>
-      </label>
-      <label class="relative mt-3 block text-sm font-medium">
-        To
+      <div class="relative mt-4">
+        <label class="block text-sm font-medium" for="compose-to">To</label>
         <input
+          id="compose-to"
           v-model="composer.to"
           required
+          placeholder="name@kamfany.com"
           class="h-10"
-          :class="fieldClass"
+          :class="[fieldClass, composer.showCc && composer.showBcc ? '' : 'pr-24']"
           autocomplete="off"
           @input="composer.lookup('to', composer.to)"
         />
-      </label>
+        <div
+          v-if="!composer.showCc || !composer.showBcc"
+          class="absolute bottom-0 right-3 flex h-10 items-center gap-3"
+        >
+          <button
+            v-if="!composer.showCc"
+            type="button"
+            class="text-sm font-medium text-muted hover:text-ink"
+            @click="composer.showCc = true"
+          >
+            Cc
+          </button>
+          <button
+            v-if="!composer.showBcc"
+            type="button"
+            class="text-sm font-medium text-muted hover:text-ink"
+            @click="composer.showBcc = true"
+          >
+            Bcc
+          </button>
+        </div>
+      </div>
       <div v-if="composer.suggestions.length && composer.suggestTarget === 'to'" class="mt-1 rounded-control border border-line bg-canvas">
         <button
           v-for="person in composer.suggestions"
@@ -66,11 +84,18 @@ function onFiles(event: Event) {
           <span v-if="person.name" class="text-muted">{{ person.address }}</span>
         </button>
       </div>
-      <label class="relative mt-3 block text-sm font-medium">
+      <label v-if="composer.showCc" class="relative mt-3 block text-sm font-medium">
         Cc
-        <input v-model="composer.cc" class="h-10" :class="fieldClass" autocomplete="off" @input="composer.lookup('cc', composer.cc)" />
+        <input
+          v-model="composer.cc"
+          placeholder="name@kamfany.com"
+          class="h-10"
+          :class="fieldClass"
+          autocomplete="off"
+          @input="composer.lookup('cc', composer.cc)"
+        />
       </label>
-      <div v-if="composer.suggestions.length && composer.suggestTarget === 'cc'" class="mt-1 rounded-control border border-line bg-canvas">
+      <div v-if="composer.showCc && composer.suggestions.length && composer.suggestTarget === 'cc'" class="mt-1 rounded-control border border-line bg-canvas">
         <button
           v-for="person in composer.suggestions"
           :key="person.address"
@@ -81,16 +106,20 @@ function onFiles(event: Event) {
           {{ person.name || person.address }}
         </button>
       </div>
-      <button v-if="!composer.showBcc" type="button" class="mt-3 self-start text-sm font-medium text-muted hover:text-ink" @click="composer.showBcc = true">
-        Add Bcc
-      </button>
-      <label v-else class="mt-3 block text-sm font-medium">
+      <label v-if="composer.showBcc" class="mt-3 block text-sm font-medium">
         Bcc
-        <input v-model="composer.bcc" class="h-10" :class="fieldClass" autocomplete="off" @input="composer.lookup('bcc', composer.bcc)" />
+        <input
+          v-model="composer.bcc"
+          placeholder="name@kamfany.com"
+          class="h-10"
+          :class="fieldClass"
+          autocomplete="off"
+          @input="composer.lookup('bcc', composer.bcc)"
+        />
       </label>
       <label class="mt-3 block text-sm font-medium">
         Subject
-        <input v-model="composer.subject" required class="h-10" :class="fieldClass" />
+        <input v-model="composer.subject" required placeholder="Subject" class="h-10" :class="fieldClass" />
       </label>
       <div class="mt-3">
         <RichEditor :html="composer.html" :reset-key="composer.resetKey" @change="composer.html = $event" />
@@ -106,36 +135,33 @@ function onFiles(event: Event) {
           </button>
         </li>
       </ul>
-      <div class="mt-4 grid gap-3 border-t border-line pt-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <label class="block text-sm font-medium">
-          Signature
-          <select v-model="composer.signatureId" class="h-10" :class="fieldClass">
-            <option value="">None</option>
-            <option v-for="item in composer.signatures" :key="item.id" :value="item.id">{{ item.name }}</option>
-          </select>
-        </label>
-        <p v-if="composer.signatureText" class="self-end text-sm leading-relaxed text-muted">{{ composer.signatureText }}</p>
-        <label class="block text-sm font-medium">
-          New signature name
-          <input v-model="composer.signatureName" class="h-10" :class="fieldClass" />
-        </label>
-        <label class="block text-sm font-medium">
-          Signature text
-          <textarea v-model="composer.signatureBody" rows="2" class="py-2" :class="fieldClass" />
-        </label>
+      <div class="mt-4 border-t border-line pt-4">
+        <div class="flex items-end gap-3">
+          <label class="block min-w-0 flex-1 text-sm font-medium">
+            Signature
+            <select v-model="composer.signatureId" class="h-10" :class="fieldClass">
+              <option value="">None</option>
+              <option v-for="item in composer.signatures" :key="item.id" :value="item.id">{{ item.name }}</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            class="h-10 shrink-0 rounded-full px-4 text-sm font-medium text-muted hover:bg-canvas hover:text-ink"
+            @click="signatureOpen = true"
+          >
+            Add signature
+          </button>
+        </div>
+        <p v-if="composer.signatureText" class="mt-2 text-sm leading-relaxed text-muted">{{ composer.signatureText }}</p>
       </div>
-      <div class="mt-2 flex flex-wrap gap-2">
-        <button type="button" class="text-sm font-medium text-muted hover:text-ink" @click="composer.saveNamedSignature()">Save signature</button>
-        <button
-          v-for="item in composer.signatures"
-          :key="item.id"
-          type="button"
-          class="text-sm text-muted hover:text-danger"
-          @click="composer.removeSignature(item.id)"
-        >
-          Delete {{ item.name }}
-        </button>
-      </div>
+      <SignatureDialog
+        v-model="signatureOpen"
+        v-model:name="composer.signatureName"
+        v-model:body="composer.signatureBody"
+        :signatures="composer.signatures"
+        :save="composer.saveNamedSignature"
+        :remove="composer.removeSignature"
+      />
       <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
         <label class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-full border border-line px-4 text-sm font-medium hover:bg-canvas">
           <Paperclip class="size-4" />

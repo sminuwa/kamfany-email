@@ -132,7 +132,7 @@ async function submit() {
             v-model="personPassword"
             type="password"
             required
-            minlength="12"
+            minlength="8"
             maxlength="128"
             autocomplete="new-password"
             placeholder="Temporary password"

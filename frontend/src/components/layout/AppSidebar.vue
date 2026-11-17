@@ -6,7 +6,6 @@ import {
   LogOut,
   FilePen,
   Inbox,
-  Mailbox,
   PenLine,
   Send,
   ShieldAlert,
@@ -18,7 +17,6 @@ import type { Component } from "vue";
 import { computed, ref } from "vue";
 import { useRailCollapsed } from "../../composables/useRail";
 import { useAuthStore } from "../../stores/auth";
-import { useMailboxStore } from "../../stores/mailboxes";
 import { useMailStore } from "../../stores/messages";
 import { useUiStore } from "../../stores/ui";
 import type { LabelTone } from "../../types/mail";
@@ -30,7 +28,6 @@ import MenuPanel from "../common/MenuPanel.vue";
 const ui = useUiStore();
 const mail = useMailStore();
 const auth = useAuthStore();
-const boxes = useMailboxStore();
 const route = useRoute();
 const router = useRouter();
 const { railCollapsed } = useRailCollapsed();
@@ -40,7 +37,6 @@ const addingLabel = ref(false);
 const folderName = ref("");
 const labelName = ref("");
 const tone = ref<LabelTone>("brass");
-const mailboxLabel = computed(() => boxes.active?.address || "No mailbox");
 const signedInName = computed(() => auth.user?.displayName || "Account");
 const signedInInitial = computed(() => auth.user?.displayName.slice(0, 1) || "K");
 const customFolders = computed(() => mail.folders.filter((folder) => !folder.systemKey));
@@ -123,18 +119,9 @@ const icons: Record<string, Component> = {
         </p>
       </div>
 
-      <div
-        class="mt-4 flex h-10 items-center gap-2 rounded-control border border-lagoon-line px-2.5 text-sm"
-        :class="railCollapsed ? 'justify-center px-0' : ''"
-        :title="mailboxLabel"
-      >
-        <Mailbox class="size-4 shrink-0 text-lagoon-muted" />
-        <span v-show="!railCollapsed" class="min-w-0 flex-1 truncate">{{ mailboxLabel }}</span>
-      </div>
-
       <button
         type="button"
-        class="mt-3 flex h-10 items-center justify-center gap-2 rounded-full bg-lagoon-ink text-sm font-semibold text-[#10211f] transition-colors duration-200 ease-out hover:bg-brass hover:text-brass-ink"
+        class="mt-4 flex h-10 items-center justify-center gap-2 rounded-full bg-lagoon-ink text-sm font-semibold text-[#10211f] transition-colors duration-200 ease-out hover:bg-brass hover:text-brass-ink"
         :class="railCollapsed ? 'mx-auto w-10 px-0' : 'w-full px-4'"
         :aria-label="railCollapsed ? 'Compose' : undefined"
         :title="railCollapsed ? 'Compose' : undefined"

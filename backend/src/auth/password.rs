@@ -5,11 +5,11 @@ use argon2::password_hash::{PasswordHasher, PasswordVerifier};
 use crate::api::AppError;
 
 pub fn password_policy(password: &str) -> Result<(), AppError> {
-    if (12..=128).contains(&password.len()) {
+    if (8..=128).contains(&password.len()) {
         Ok(())
     } else {
         Err(AppError::Validation(
-            "Use a password between 12 and 128 characters.".into(),
+            "Use a password between 8 and 128 characters.".into(),
         ))
     }
 }
@@ -72,6 +72,8 @@ mod tests {
     #[test]
     fn short_passwords_are_rejected() {
         assert!(password_policy("short").is_err());
+        assert!(password_policy("1234567").is_err());
+        assert!(password_policy("12345678").is_ok());
         assert!(password_policy("long-enough-password").is_ok());
     }
 

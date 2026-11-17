@@ -30,6 +30,7 @@ export function useComposer() {
   const to = ref("");
   const cc = ref("");
   const bcc = ref("");
+  const showCc = ref(false);
   const showBcc = ref(false);
   const subject = ref("");
   const html = ref("<p></p>");
@@ -115,6 +116,7 @@ export function useComposer() {
     messageId.value = intent.messageId;
     draftId.value = intent.draftId;
     files.value = [];
+    showCc.value = false;
     showBcc.value = false;
     mailboxId.value = mail.mailboxId ?? senders.value[0]?.id ?? "";
     if (intent.draftId) {
@@ -125,6 +127,7 @@ export function useComposer() {
       to.value = draft.to.join(", ");
       cc.value = draft.cc.join(", ");
       bcc.value = draft.bcc.join(", ");
+      showCc.value = draft.cc.length > 0;
       showBcc.value = draft.bcc.length > 0;
       subject.value = draft.subject;
       html.value = draft.html || "<p></p>";
@@ -133,6 +136,7 @@ export function useComposer() {
       const prepared = prepareCompose(intent.kind, sourceMessage(), mail.address);
       to.value = prepared.to;
       cc.value = prepared.cc;
+      showCc.value = prepared.cc.trim() !== "";
       bcc.value = "";
       subject.value = prepared.subject;
       html.value = textToHtml(prepared.body);
@@ -286,7 +290,7 @@ export function useComposer() {
 
   async function saveNamedSignature() {
     if (!signatureName.value.trim()) {
-      return;
+      return false;
     }
     const created = await createSignature({
       mailboxId: mailboxId.value || null,
@@ -298,6 +302,7 @@ export function useComposer() {
     signatureId.value = created.id;
     signatureName.value = "";
     signatureBody.value = "";
+    return true;
   }
 
   async function removeSignature(id: string) {
@@ -330,6 +335,7 @@ export function useComposer() {
     to,
     cc,
     bcc,
+    showCc,
     showBcc,
     subject,
     html,

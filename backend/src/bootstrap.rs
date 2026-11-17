@@ -28,7 +28,7 @@ pub async fn ensure_dev_admin(pool: &PgPool, config: &AppConfig) -> anyhow::Resu
         return Ok(());
     };
     if password_policy(&password).is_err() {
-        tracing::warn!("BOOTSTRAP_ADMIN_PASSWORD must be 12 to 128 characters");
+        tracing::warn!("BOOTSTRAP_ADMIN_PASSWORD must be 8 to 128 characters");
         return Ok(());
     }
 
