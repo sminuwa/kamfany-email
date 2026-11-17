@@ -53,6 +53,7 @@ pub struct SignatureView {
 
 #[derive(Serialize, sqlx::FromRow)]
 pub struct Suggestion {
+    pub id: Option<Uuid>,
     pub address: String,
     pub name: Option<String>,
     pub kind: String,
@@ -511,11 +512,10 @@ pub async fn suggest(
     );
     let mut rows = sqlx::query_as::<_, Suggestion>(
         r#"
-        SELECT address::text AS address, name, 'group' AS kind
+        SELECT id, ''::text AS address, name, 'group' AS kind
         FROM mailbox_groups
-        WHERE address::text ILIKE $1 ESCAPE '\'
-           OR name ILIKE $1 ESCAPE '\'
-        ORDER BY address
+        WHERE name ILIKE $1 ESCAPE '\'
+        ORDER BY lower(name), name
         LIMIT 8
         "#,
     )
@@ -524,7 +524,7 @@ pub async fn suggest(
     .await?;
     let people = sqlx::query_as::<_, Suggestion>(
         r#"
-        SELECT address::text AS address, max(name) AS name, 'person' AS kind
+        SELECT NULL::uuid AS id, address::text AS address, max(name) AS name, 'person' AS kind
         FROM (
             SELECT r.address, r.name
             FROM recipients r

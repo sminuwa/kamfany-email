@@ -33,6 +33,7 @@ export interface MailSignature {
 }
 
 export interface RecipientSuggestion {
+  id?: string | null;
   address: string;
   name: string | null;
   kind?: string;
@@ -194,7 +195,7 @@ export async function suggestRecipients(
   mailboxId: string,
   query: string,
 ): Promise<RecipientSuggestion[]> {
-  const response = await http.get<ApiData<{ address: string; name: string | null; kind?: string }[]>>(
+  const response = await http.get<ApiData<RecipientSuggestion[]>>(
     `/api/v1/mailboxes/${mailboxId}/recipients`,
     { params: { q: query } },
   );

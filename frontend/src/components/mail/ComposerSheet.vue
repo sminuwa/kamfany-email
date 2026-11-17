@@ -45,7 +45,7 @@ function onFiles(event: Event) {
         <input
           id="compose-to"
           v-model="composer.to"
-          required
+          :required="composer.groups.length === 0"
           :placeholder="brand.addressHint"
           class="h-10"
           :class="[fieldClass, composer.showCc && composer.showBcc ? '' : 'pr-24']"
@@ -74,13 +74,31 @@ function onFiles(event: Event) {
           </button>
         </div>
       </div>
+      <ul v-if="composer.groups.length" class="mt-2 flex flex-wrap gap-2">
+        <li
+          v-for="group in composer.groups"
+          :key="group.id"
+          class="flex items-center gap-2 rounded-control border border-line px-2.5 py-1.5 text-sm"
+        >
+          <span>{{ group.name }}</span>
+          <span class="text-muted">Group</span>
+          <button
+            type="button"
+            class="text-muted hover:text-ink"
+            :aria-label="`Remove ${group.name}`"
+            @click="composer.removeGroup(group.id)"
+          >
+            Remove
+          </button>
+        </li>
+      </ul>
       <div v-if="composer.suggestions.length && composer.suggestTarget === 'to'" class="mt-1 rounded-control border border-line bg-canvas">
         <button
           v-for="person in composer.suggestions"
-          :key="person.address"
+          :key="person.id || person.address"
           type="button"
           class="block w-full px-3 py-2 text-left text-sm hover:bg-surface"
-          @click="composer.chooseSuggestion(person.address)"
+          @click="composer.chooseSuggestion(person)"
         >
           {{ person.name || person.address }}
           <span v-if="person.kind === 'group'" class="text-muted">Group</span>
@@ -101,10 +119,10 @@ function onFiles(event: Event) {
       <div v-if="composer.showCc && composer.suggestions.length && composer.suggestTarget === 'cc'" class="mt-1 rounded-control border border-line bg-canvas">
         <button
           v-for="person in composer.suggestions"
-          :key="person.address"
+          :key="person.id || person.address"
           type="button"
           class="block w-full px-3 py-2 text-left text-sm hover:bg-surface"
-          @click="composer.chooseSuggestion(person.address)"
+          @click="composer.chooseSuggestion(person)"
         >
           {{ person.name || person.address }}
           <span v-if="person.kind === 'group'" class="text-muted">Group</span>

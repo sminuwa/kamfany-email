@@ -346,6 +346,7 @@ export const useMailStore = defineStore("mail", () => {
     subject: string;
     text: string;
     html: string;
+    groupIds?: string[];
   }) {
     const to = splitAddresses(input.to);
     const cc = splitAddresses(input.cc);
@@ -358,6 +359,7 @@ export const useMailStore = defineStore("mail", () => {
       text: input.text,
       html: input.html,
       draftId: input.draftId,
+      groupIds: input.groupIds ?? [],
     };
     if (input.kind === "new") {
       await sendNewMessage(input.mailboxId, body);

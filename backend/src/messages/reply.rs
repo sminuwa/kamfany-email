@@ -16,6 +16,7 @@ pub struct ComposeFields {
     pub text: Option<String>,
     pub html: Option<String>,
     pub draft_id: Option<Uuid>,
+    pub group_ids: Vec<Uuid>,
 }
 
 pub async fn reply_message(
@@ -54,6 +55,7 @@ pub async fn reply_message(
             text,
             html: fields.html,
             draft_id: fields.draft_id,
+            group_ids: fields.group_ids,
             fresh: false,
         },
     )
@@ -86,6 +88,7 @@ pub async fn forward_message(
             text,
             html: fields.html,
             draft_id: fields.draft_id,
+            group_ids: fields.group_ids,
             fresh: true,
         },
     )
@@ -100,6 +103,7 @@ struct LinkedMail {
     text: Option<String>,
     html: Option<String>,
     draft_id: Option<Uuid>,
+    group_ids: Vec<Uuid>,
     fresh: bool,
 }
 
@@ -292,6 +296,7 @@ async fn send_linked(
             text: mail.text,
             html: mail.html,
             draft_id: mail.draft_id,
+            group_ids: mail.group_ids,
             link: Some(SendLink {
                 thread_id: if mail.fresh { None } else { source.thread_id },
                 in_reply_to: (!parent.is_empty()).then_some(parent),

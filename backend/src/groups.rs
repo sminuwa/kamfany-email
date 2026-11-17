@@ -1,11 +1,11 @@
-//! Mailbox groups. The owner creates an address; sending to it reaches each member.
+//! Mailbox groups. The owner names a group and adds mailboxes. Sending to the group reaches each member.
 
 use serde::Serialize;
 use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::api::AppError;
-use crate::auth::{display_name, load_roles, normalize_email, write_audit};
+use crate::auth::{display_name, load_roles, write_audit};
 use crate::state::AppState;
 
 const MAX_MEMBERS: usize = 50;
@@ -21,7 +21,6 @@ pub struct GroupMailbox {
 pub struct GroupView {
     pub id: Uuid,
     pub name: String,
-    pub address: String,
     pub mailboxes: Vec<GroupMailbox>,
 }
 
@@ -34,7 +33,7 @@ pub struct GroupMember {
 
 #[derive(Debug, Clone)]
 pub struct GroupDirectory {
-    pub address: String,
+    pub id: Uuid,
     pub name: String,
     pub members: Vec<GroupMember>,
 }
@@ -49,7 +48,6 @@ pub struct Fanout {
 
 pub struct GroupInput {
     pub name: String,
-    pub local_part: String,
     pub mailbox_ids: Vec<Uuid>,
 }
 
@@ -66,18 +64,14 @@ pub async fn create(
     let pool = crate::auth::pool_of(state)?;
     require_owner(pool, actor).await?;
     let name = display_name(&input.name)?;
-    let address = group_address(&input.local_part, &state.config.resend.sending_domain)?;
     let mailbox_ids = clean_members(&input.mailbox_ids)?;
-    ensure_address_free(pool, &address, None).await?;
     let mut tx = pool.begin().await?;
-    let id = sqlx::query_scalar::<_, Uuid>(
-        "INSERT INTO mailbox_groups (name, address) VALUES ($1, $2) RETURNING id",
-    )
-    .bind(&name)
-    .bind(&address)
-    .fetch_one(&mut *tx)
-    .await
-    .map_err(map_db)?;
+    let id =
+        sqlx::query_scalar::<_, Uuid>("INSERT INTO mailbox_groups (name) VALUES ($1) RETURNING id")
+            .bind(&name)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(map_db)?;
     insert_members(&mut tx, id, &mailbox_ids).await?;
     tx.commit().await?;
     write_audit(
@@ -86,7 +80,7 @@ pub async fn create(
         "group.created",
         Some("mailbox_group"),
         Some(id),
-        serde_json::json!({ "address": address, "mailboxes": mailbox_ids.len() }),
+        serde_json::json!({ "name": name, "mailboxes": mailbox_ids.len() }),
     )
     .await?;
     load_one(pool, id).await
@@ -119,14 +113,22 @@ pub async fn update(
             .bind(id)
             .bind(name)
             .execute(&mut *tx)
-            .await?;
+            .await
+            .map_err(map_db)?;
     }
     if let Some(mailbox_ids) = &mailbox_ids {
         sqlx::query("DELETE FROM mailbox_group_members WHERE group_id = $1")
             .bind(id)
             .execute(&mut *tx)
             .await?;
-        insert_members(&mut tx, id, mailbox_ids).await?;
+        for mailbox_id in mailbox_ids {
+            sqlx::query("INSERT INTO mailbox_group_members (group_id, mailbox_id) VALUES ($1, $2)")
+                .bind(id)
+                .bind(mailbox_id)
+                .execute(&mut *tx)
+                .await
+                .map_err(map_db)?;
+        }
     }
     tx.commit().await?;
     write_audit(
@@ -168,14 +170,9 @@ pub async fn fanout(
     to: &[String],
     cc: &[String],
     bcc: &[String],
+    group_ids: &[Uuid],
 ) -> Result<Fanout, AppError> {
-    let mut wanted = Vec::new();
-    wanted.extend(to.iter().cloned());
-    wanted.extend(cc.iter().cloned());
-    wanted.extend(bcc.iter().cloned());
-    wanted.sort();
-    wanted.dedup();
-    if wanted.is_empty() {
+    if group_ids.is_empty() {
         return Ok(Fanout {
             to: to.to_vec(),
             cc: cc.to_vec(),
@@ -183,7 +180,13 @@ pub async fn fanout(
             mailboxes: Vec::new(),
         });
     }
-    let directory = load_directory(pool, &wanted).await?;
+    let mut ids = group_ids.to_vec();
+    ids.sort();
+    ids.dedup();
+    let directory = load_directory(pool, &ids).await?;
+    if directory.len() != ids.len() {
+        return Err(AppError::Validation("Choose a group that exists.".into()));
+    }
     expand_recipients(to, cc, bcc, &directory)
 }
 
@@ -201,21 +204,33 @@ pub fn expand_recipients(
             mailboxes: Vec::new(),
         });
     }
-    let to = replace_groups(to, groups)?;
-    let mut cc = replace_groups(cc, groups)?;
-    let mut bcc = replace_groups(bcc, groups)?;
-    cc.retain(|address| !contains_address(&to, address));
-    bcc.retain(|address| !contains_address(&to, address) && !contains_address(&cc, address));
+    let mut expanded = to.to_vec();
     let mut mailboxes = Vec::new();
     for group in groups {
-        for member in group.members.iter().filter(|member| member.enabled) {
+        let enabled: Vec<_> = group
+            .members
+            .iter()
+            .filter(|member| member.enabled)
+            .collect();
+        if enabled.is_empty() {
+            return Err(AppError::Validation(format!(
+                "{} has no mailboxes that can receive mail.",
+                group.name
+            )));
+        }
+        for member in enabled {
+            push_unique(&mut expanded, member.address.clone());
             if !mailboxes.contains(&member.mailbox_id) {
                 mailboxes.push(member.mailbox_id);
             }
         }
     }
+    let mut cc = cc.to_vec();
+    let mut bcc = bcc.to_vec();
+    cc.retain(|address| !contains_address(&expanded, address));
+    bcc.retain(|address| !contains_address(&expanded, address) && !contains_address(&cc, address));
     Ok(Fanout {
-        to,
+        to: expanded,
         cc,
         bcc,
         mailboxes,
@@ -231,25 +246,6 @@ async fn require_owner(pool: &PgPool, user_id: Uuid) -> Result<(), AppError> {
             "Only the owner can manage groups.".into(),
         ))
     }
-}
-
-fn group_address(local_part: &str, domain: &str) -> Result<String, AppError> {
-    let local = local_part.trim().to_lowercase();
-    if local.is_empty()
-        || local.len() > 64
-        || local.contains('@')
-        || local.starts_with('.')
-        || local.ends_with('.')
-        || local.contains("..")
-        || !local
-            .chars()
-            .all(|char| char.is_ascii_alphanumeric() || matches!(char, '.' | '_' | '-' | '+'))
-    {
-        return Err(AppError::Validation(
-            "Use a short group address such as support.".into(),
-        ));
-    }
-    normalize_email(&format!("{local}@{domain}"))
 }
 
 fn clean_members(ids: &[Uuid]) -> Result<Vec<Uuid>, AppError> {
@@ -272,58 +268,25 @@ fn clean_members(ids: &[Uuid]) -> Result<Vec<Uuid>, AppError> {
     Ok(mailbox_ids)
 }
 
-async fn ensure_address_free(
-    pool: &PgPool,
-    address: &str,
-    except_group: Option<Uuid>,
-) -> Result<(), AppError> {
-    let mailbox_taken = sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS(SELECT 1 FROM mailboxes WHERE lower(address::text) = $1)",
-    )
-    .bind(address)
-    .fetch_one(pool)
-    .await?;
-    if mailbox_taken {
-        return Err(AppError::Conflict(
-            "That address is already a mailbox.".into(),
-        ));
-    }
-    let group_taken = sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS(SELECT 1 FROM mailbox_groups WHERE lower(address::text) = $1 AND id IS DISTINCT FROM $2)",
-    )
-    .bind(address)
-    .bind(except_group)
-    .fetch_one(pool)
-    .await?;
-    if group_taken {
-        return Err(AppError::Conflict(
-            "That group address is already used.".into(),
-        ));
-    }
-    Ok(())
-}
-
 async fn insert_members(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     group_id: Uuid,
     mailbox_ids: &[Uuid],
 ) -> Result<(), AppError> {
     for mailbox_id in mailbox_ids {
-        sqlx::query(
-            "INSERT INTO mailbox_group_members (group_id, mailbox_id) VALUES ($1, $2)",
-        )
-        .bind(group_id)
-        .bind(mailbox_id)
-        .execute(&mut **tx)
-        .await
-        .map_err(map_db)?;
+        sqlx::query("INSERT INTO mailbox_group_members (group_id, mailbox_id) VALUES ($1, $2)")
+            .bind(group_id)
+            .bind(mailbox_id)
+            .execute(&mut **tx)
+            .await
+            .map_err(map_db)?;
     }
     Ok(())
 }
 
 async fn load_all(pool: &PgPool) -> Result<Vec<GroupView>, AppError> {
     let groups = sqlx::query_as::<_, GroupRow>(
-        "SELECT id, name, address::text AS address FROM mailbox_groups ORDER BY address",
+        "SELECT id, name FROM mailbox_groups ORDER BY lower(name), name",
     )
     .fetch_all(pool)
     .await?;
@@ -351,7 +314,6 @@ async fn load_all(pool: &PgPool) -> Result<Vec<GroupView>, AppError> {
                 .collect(),
             id: group.id,
             name: group.name,
-            address: group.address,
         })
         .collect())
 }
@@ -364,27 +326,23 @@ async fn load_one(pool: &PgPool, id: Uuid) -> Result<GroupView, AppError> {
         .ok_or(AppError::NotFound)
 }
 
-async fn load_directory(pool: &PgPool, addresses: &[String]) -> Result<Vec<GroupDirectory>, AppError> {
+async fn load_directory(pool: &PgPool, ids: &[Uuid]) -> Result<Vec<GroupDirectory>, AppError> {
     let rows = sqlx::query_as::<_, DirectoryRow>(
         r#"
-        SELECT lower(g.address::text) AS address,
-               g.name,
-               m.id AS mailbox_id,
-               m.address::text AS mailbox_address,
-               m.is_enabled
+        SELECT g.id, g.name, m.id AS mailbox_id, m.address::text AS mailbox_address, m.is_enabled
         FROM mailbox_groups g
         LEFT JOIN mailbox_group_members gm ON gm.group_id = g.id
         LEFT JOIN mailboxes m ON m.id = gm.mailbox_id
-        WHERE lower(g.address::text) = ANY($1)
-        ORDER BY g.address, m.address
+        WHERE g.id = ANY($1)
+        ORDER BY g.name, m.address
         "#,
     )
-    .bind(addresses)
+    .bind(ids)
     .fetch_all(pool)
     .await?;
     let mut groups = Vec::<GroupDirectory>::new();
     for row in rows {
-        if let Some(group) = groups.iter_mut().find(|group| group.address == row.address) {
+        if let Some(group) = groups.iter_mut().find(|group| group.id == row.id) {
             if let (Some(mailbox_id), Some(address), Some(enabled)) =
                 (row.mailbox_id, row.mailbox_address, row.is_enabled)
             {
@@ -406,34 +364,13 @@ async fn load_directory(pool: &PgPool, addresses: &[String]) -> Result<Vec<Group
                 });
             }
             groups.push(GroupDirectory {
-                address: row.address,
+                id: row.id,
                 name: row.name,
                 members,
             });
         }
     }
     Ok(groups)
-}
-
-fn replace_groups(addresses: &[String], groups: &[GroupDirectory]) -> Result<Vec<String>, AppError> {
-    let mut expanded = Vec::new();
-    for address in addresses {
-        if let Some(group) = groups.iter().find(|group| group.address == *address) {
-            let enabled: Vec<_> = group.members.iter().filter(|member| member.enabled).collect();
-            if enabled.is_empty() {
-                return Err(AppError::Validation(format!(
-                    "{} has no mailboxes that can receive mail.",
-                    group.name
-                )));
-            }
-            for member in enabled {
-                push_unique(&mut expanded, member.address.clone());
-            }
-        } else {
-            push_unique(&mut expanded, address.clone());
-        }
-    }
-    Ok(expanded)
 }
 
 fn push_unique(addresses: &mut Vec<String>, address: String) {
@@ -452,7 +389,7 @@ fn map_db(error: sqlx::Error) -> AppError {
     if let sqlx::Error::Database(db) = &error {
         match db.code().as_deref() {
             Some("23505") => {
-                return AppError::Conflict("That group address is already used.".into());
+                return AppError::Conflict("A group with that name already exists.".into());
             }
             Some("23503") => {
                 return AppError::Validation("Choose mailboxes that exist.".into());
@@ -467,7 +404,6 @@ fn map_db(error: sqlx::Error) -> AppError {
 struct GroupRow {
     id: Uuid,
     name: String,
-    address: String,
 }
 
 #[derive(sqlx::FromRow)]
@@ -480,7 +416,7 @@ struct MemberRow {
 
 #[derive(sqlx::FromRow)]
 struct DirectoryRow {
-    address: String,
+    id: Uuid,
     name: String,
     mailbox_id: Option<Uuid>,
     mailbox_address: Option<String>,
@@ -494,7 +430,7 @@ mod tests {
 
     fn support() -> GroupDirectory {
         GroupDirectory {
-            address: "support@kamfany.com".into(),
+            id: Uuid::from_u128(9),
             name: "Support".into(),
             members: vec![
                 GroupMember {
@@ -517,9 +453,9 @@ mod tests {
     }
 
     #[test]
-    fn a_group_address_expands_to_enabled_mailboxes() {
+    fn a_group_adds_its_enabled_mailboxes() {
         let fanout = expand_recipients(
-            &["support@kamfany.com".into(), "ada@kamfany.com".into()],
+            &["ada@kamfany.com".into()],
             &["chi@kamfany.com".into()],
             &[],
             &[support()],
@@ -534,14 +470,13 @@ mod tests {
     }
 
     #[test]
-    fn an_empty_group_cannot_be_addressed() {
+    fn an_empty_group_cannot_receive_mail() {
         let group = GroupDirectory {
-            address: "empty@kamfany.com".into(),
+            id: Uuid::from_u128(4),
             name: "Empty".into(),
             members: Vec::new(),
         };
-        let error = expand_recipients(&["empty@kamfany.com".into()], &[], &[], &[group])
-            .expect_err("empty");
+        let error = expand_recipients(&[], &[], &[], &[group]).expect_err("empty");
         assert!(error.to_string().contains("Empty"));
     }
 }

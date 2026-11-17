@@ -274,6 +274,7 @@ interface SendJson {
   text: string;
   html: string;
   draft_id?: string | null;
+  group_ids?: string[];
 }
 
 function sendBody(body: {
@@ -284,6 +285,7 @@ function sendBody(body: {
   text: string;
   html: string;
   draftId: string | null;
+  groupIds?: string[];
 }): SendJson {
   return {
     to: body.to,
@@ -293,6 +295,7 @@ function sendBody(body: {
     text: body.text,
     html: body.html,
     draft_id: body.draftId,
+    group_ids: body.groupIds ?? [],
   };
 }
 
@@ -306,6 +309,7 @@ export async function sendNewMessage(
     text: string;
     html: string;
     draftId: string | null;
+    groupIds?: string[];
   },
 ) {
   await http.post(`/api/v1/mailboxes/${mailboxId}/send`, sendBody(body), { timeout: 60_000 });
@@ -322,6 +326,7 @@ export async function sendReply(
     text: string;
     html: string;
     draftId: string | null;
+    groupIds?: string[];
   },
 ) {
   await http.post(
@@ -341,6 +346,7 @@ export async function sendForward(
     text: string;
     html: string;
     draftId: string | null;
+    groupIds?: string[];
   },
 ) {
   await http.post(`/api/v1/messages/${messageId}/forward`, sendBody(body), { timeout: 60_000 });

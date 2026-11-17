@@ -119,7 +119,12 @@ async fn call(
         .and_then(|value| value.split(';').next())
         .and_then(|value| value.strip_prefix("kamfany_session="))
         .map(str::to_string);
-    let bytes = response.into_body().collect().await.expect("body").to_bytes();
+    let bytes = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body")
+        .to_bytes();
     let json = if bytes.is_empty() {
         serde_json::Value::Null
     } else {
@@ -134,10 +139,11 @@ async fn the_owner_creates_a_group_and_mail_reaches_each_mailbox() {
     let suffix = Uuid::new_v4().simple();
     let owner_role = uuid::uuid!("10000000-0000-4000-8000-000000000001");
     let member_role = uuid::uuid!("10000000-0000-4000-8000-000000000003");
-    let owner_mailbox = create_user(&pool, &format!("owner-{suffix}@kamfany.test"), owner_role).await;
+    let owner_mailbox =
+        create_user(&pool, &format!("owner-{suffix}@kamfany.test"), owner_role).await;
     let first = create_user(&pool, &format!("ada-{suffix}@kamfany.test"), member_role).await;
     let second = create_user(&pool, &format!("bola-{suffix}@kamfany.test"), member_role).await;
-    let local = format!("team-{suffix}");
+    let name = format!("Team {suffix}");
 
     let (status, _, owner_cookie) = call(
         &app,
@@ -173,8 +179,7 @@ async fn the_owner_creates_a_group_and_mail_reaches_each_mailbox() {
         "/api/v1/groups",
         Some(&member_cookie),
         Some(json!({
-            "name": "Team",
-            "address": local,
+            "name": name,
             "mailbox_ids": [first, second]
         })),
     )
@@ -187,16 +192,22 @@ async fn the_owner_creates_a_group_and_mail_reaches_each_mailbox() {
         "/api/v1/groups",
         Some(&owner_cookie),
         Some(json!({
-            "name": "Team",
-            "address": local,
+            "name": name,
             "mailbox_ids": [first, second, owner_mailbox]
         })),
     )
     .await;
     assert_eq!(status, StatusCode::CREATED);
-    let address = created["data"]["address"].as_str().expect("address").to_string();
-    assert!(address.starts_with(&format!("team-{suffix}@")));
-    assert_eq!(created["data"]["mailboxes"].as_array().expect("members").len(), 3);
+    assert!(created["data"].get("address").is_none());
+    assert_eq!(created["data"]["name"], name);
+    assert_eq!(
+        created["data"]["mailboxes"]
+            .as_array()
+            .expect("members")
+            .len(),
+        3
+    );
+    let group_id = Uuid::parse_str(created["data"]["id"].as_str().expect("id")).expect("group id");
 
     let (status, listed, _) = call(&app, "GET", "/api/v1/groups", Some(&member_cookie), None).await;
     assert_eq!(status, StatusCode::OK);
@@ -205,10 +216,10 @@ async fn the_owner_creates_a_group_and_mail_reaches_each_mailbox() {
             .as_array()
             .expect("groups")
             .iter()
-            .any(|group| group["address"] == address)
+            .any(|group| group["name"] == name && group.get("address").is_none())
     );
 
-    let expanded = fanout(&pool, std::slice::from_ref(&address), &[], &[])
+    let expanded = fanout(&pool, &[], &[], &[], std::slice::from_ref(&group_id))
         .await
         .expect("fanout");
     assert_eq!(expanded.to.len(), 3);
@@ -234,7 +245,7 @@ async fn the_owner_creates_a_group_and_mail_reaches_each_mailbox() {
             subject: "Hello team",
             text: Some("The note"),
             html: None,
-            to: std::slice::from_ref(&address),
+            to: &expanded.to,
             cc: &[],
             message_id_header: "<group-test@kamfany.com>",
             provider_message_id: &provider_message_id,

@@ -81,6 +81,8 @@ pub struct ReplyBody {
     text: Option<String>,
     html: Option<String>,
     draft_id: Option<Uuid>,
+    #[serde(default)]
+    group_ids: Vec<Uuid>,
 }
 
 #[derive(Deserialize)]
@@ -92,6 +94,8 @@ pub struct ForwardBody {
     text: Option<String>,
     html: Option<String>,
     draft_id: Option<Uuid>,
+    #[serde(default)]
+    group_ids: Vec<Uuid>,
 }
 
 #[derive(serde::Serialize)]
@@ -270,6 +274,7 @@ pub async fn reply(
             text: body.text,
             html: body.html,
             draft_id: body.draft_id,
+            group_ids: body.group_ids,
         },
     )
     .await?;
@@ -299,6 +304,7 @@ pub async fn forward(
             text: body.text,
             html: body.html,
             draft_id: body.draft_id,
+            group_ids: body.group_ids,
         },
     )
     .await?;

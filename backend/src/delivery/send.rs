@@ -29,6 +29,7 @@ pub struct SendRequest {
     pub html: Option<String>,
     pub link: Option<SendLink>,
     pub draft_id: Option<Uuid>,
+    pub group_ids: Vec<Uuid>,
 }
 
 pub struct SentMessage {
@@ -75,10 +76,13 @@ pub async fn send_mail(
     let to = normalize_many(&request.to, "To")?;
     let cc = normalize_many(&request.cc, "Cc")?;
     let bcc = normalize_many(&request.bcc, "Bcc")?;
-    if to.is_empty() {
+    if to.is_empty() && request.group_ids.is_empty() {
         return Err(AppError::Validation("Add at least one recipient.".into()));
     }
-    let fanout = crate::groups::fanout(pool, &to, &cc, &bcc).await?;
+    let fanout = crate::groups::fanout(pool, &to, &cc, &bcc, &request.group_ids).await?;
+    if fanout.to.is_empty() {
+        return Err(AppError::Validation("Add at least one recipient.".into()));
+    }
     if fanout.to.len() + fanout.cc.len() + fanout.bcc.len() > MAX_RECIPIENTS {
         return Err(AppError::Validation(
             "A message can have at most 50 recipients.".into(),
@@ -123,9 +127,9 @@ pub async fn send_mail(
             subject,
             text: text.as_deref(),
             html: html.as_deref(),
-            to: &to,
-            cc: &cc,
-            bcc: &bcc,
+            to: &fanout.to,
+            cc: &fanout.cc,
+            bcc: &fanout.bcc,
             link: request.link.as_ref(),
         },
     )
@@ -144,9 +148,9 @@ pub async fn send_mail(
         .send_email(&OutboundEmail {
             from_name: mailbox.display_name.clone(),
             from_address: mailbox.address.clone(),
-            to: fanout.to,
-            cc: fanout.cc,
-            bcc: fanout.bcc,
+            to: fanout.to.clone(),
+            cc: fanout.cc.clone(),
+            bcc: fanout.bcc.clone(),
             subject: subject.to_string(),
             text: text.clone(),
             html: html.clone(),
@@ -196,8 +200,8 @@ pub async fn send_mail(
                     subject,
                     text: text.as_deref(),
                     html: html.as_deref(),
-                    to: &to,
-                    cc: &cc,
+                    to: &fanout.to,
+                    cc: &fanout.cc,
                     message_id_header: &outgoing.message_id_header,
                     provider_message_id: &receipt.provider_message_id,
                     mailbox_ids: &fanout.mailboxes,

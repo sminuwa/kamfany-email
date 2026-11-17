@@ -9,17 +9,14 @@ import {
   type MailGroup,
 } from "../../services/groups.service";
 import { useAuthStore } from "../../stores/auth";
-import { useBrandStore } from "../../stores/brand";
 import type { PersonAccount } from "../../services/auth.service";
 import { field } from "./account-form";
 
 const auth = useAuthStore();
-const brand = useBrandStore();
 const groups = ref<MailGroup[]>([]);
 const people = ref<PersonAccount[]>([]);
 const notice = ref("");
 const name = ref("");
-const address = ref("");
 const selected = ref<string[]>([]);
 const editingId = ref<string | null>(null);
 const pending = ref(false);
@@ -37,14 +34,12 @@ onMounted(async () => {
 function resetForm() {
   editingId.value = null;
   name.value = "";
-  address.value = "";
   selected.value = [];
 }
 
 function edit(group: MailGroup) {
   editingId.value = group.id;
   name.value = group.name;
-  address.value = group.address.split("@")[0] ?? "";
   selected.value = group.mailboxes.map((mailbox) => mailbox.id);
 }
 
@@ -68,11 +63,10 @@ async function save() {
     } else {
       const saved = await createGroup({
         name: name.value,
-        address: address.value,
         mailboxIds: selected.value,
       });
       groups.value = [...groups.value, saved].sort((left, right) =>
-        left.address.localeCompare(right.address),
+        left.name.localeCompare(right.name),
       );
       notice.value = "Group created.";
     }
@@ -103,7 +97,7 @@ async function remove(group: MailGroup) {
   <section>
     <h1 class="text-[2rem] font-semibold leading-tight tracking-[-0.03em]">Groups</h1>
     <p class="mt-2 max-w-[62ch] text-sm leading-relaxed text-muted">
-      A group is one address. Mail sent to it is delivered to every mailbox in the group.
+      A group is a named list of mailboxes. Mail sent to the group is delivered to each mailbox in it.
     </p>
     <p v-if="notice" class="mt-4 rounded-control bg-surface px-3 py-2 text-sm leading-relaxed" role="status">
       {{ notice }}
@@ -116,22 +110,6 @@ async function remove(group: MailGroup) {
       <label class="block text-sm font-medium">
         Name
         <input v-model="name" required maxlength="80" :class="[field, 'mt-1.5']" />
-      </label>
-      <label class="block text-sm font-medium">
-        Address
-        <span class="mt-1.5 flex items-center gap-2">
-          <input
-            v-model="address"
-            required
-            maxlength="64"
-            :disabled="Boolean(editingId)"
-            :class="[field, 'disabled:opacity-60']"
-            placeholder="support"
-            autocapitalize="off"
-            autocomplete="off"
-          />
-          <span class="shrink-0 text-sm text-muted">@{{ brand.domain || "domain" }}</span>
-        </span>
       </label>
       <fieldset>
         <legend class="text-sm font-medium">Mailboxes</legend>
@@ -165,7 +143,9 @@ async function remove(group: MailGroup) {
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 class="text-lg font-semibold tracking-[-0.02em]">{{ group.name }}</h2>
-            <p class="text-sm text-muted">{{ group.address }}</p>
+            <p class="text-sm text-muted">
+              {{ group.mailboxes.length }} {{ group.mailboxes.length === 1 ? "mailbox" : "mailboxes" }}
+            </p>
           </div>
           <div class="flex gap-2">
             <button type="button" class="km-mini line" @click="edit(group)">Edit</button>

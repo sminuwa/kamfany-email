@@ -42,6 +42,7 @@ export function useComposer() {
   const signatures = ref<MailSignature[]>([]);
   const signatureId = ref("");
   const suggestions = ref<RecipientSuggestion[]>([]);
+  const groups = ref<Array<{ id: string; name: string }>>([]);
   const suggestTarget = ref<"to" | "cc" | "bcc" | null>(null);
   const failure = ref("");
   const status = ref("");
@@ -86,6 +87,7 @@ export function useComposer() {
 
   function dirty(): boolean {
     return (
+      groups.value.length > 0 ||
       to.value.trim() !== "" ||
       cc.value.trim() !== "" ||
       bcc.value.trim() !== "" ||
@@ -111,6 +113,7 @@ export function useComposer() {
     failure.value = "";
     status.value = "";
     suggestions.value = [];
+    groups.value = [];
     const intent = ui.composeIntent;
     kind.value = intent.kind;
     messageId.value = intent.messageId;
@@ -219,16 +222,29 @@ export function useComposer() {
     suggestions.value = await suggestRecipients(mailboxId.value, part);
   }
 
-  function chooseSuggestion(address: string) {
+  function chooseSuggestion(person: RecipientSuggestion) {
     const target = suggestTarget.value ?? "to";
     const current = target === "to" ? to : target === "cc" ? cc : bcc;
     const parts = splitAddresses(current.value);
     parts.pop();
-    if (!parts.some((item) => item.toLowerCase() === address.toLowerCase())) {
+    if (person.kind === "group" && person.id) {
+      if (!groups.value.some((group) => group.id === person.id)) {
+        groups.value = [...groups.value, { id: person.id, name: person.name?.trim() || "Group" }];
+      }
+      current.value = parts.join(", ");
+      suggestions.value = [];
+      return;
+    }
+    const address = person.address;
+    if (address && !parts.some((item) => item.toLowerCase() === address.toLowerCase())) {
       parts.push(address);
     }
     current.value = parts.join(", ");
     suggestions.value = [];
+  }
+
+  function removeGroup(id: string) {
+    groups.value = groups.value.filter((group) => group.id !== id);
   }
 
   async function send() {
@@ -248,6 +264,7 @@ export function useComposer() {
         subject: subject.value,
         text: htmlToText(outgoing),
         html: outgoing,
+        groupIds: groups.value.map((group) => group.id),
       });
       ui.closeComposer();
     } catch (error) {
@@ -325,7 +342,7 @@ export function useComposer() {
     { immediate: true },
   );
 
-  watch([to, cc, bcc, subject, html, mailboxId], scheduleSave);
+  watch([to, cc, bcc, subject, html, mailboxId, groups], scheduleSave);
 
   onBeforeUnmount(() => window.clearTimeout(timer));
 
@@ -346,6 +363,7 @@ export function useComposer() {
     signature,
     signatureText,
     suggestions,
+    groups,
     suggestTarget,
     failure,
     status,
@@ -363,6 +381,7 @@ export function useComposer() {
     detach,
     lookup,
     chooseSuggestion,
+    removeGroup,
     saveNamedSignature,
     removeSignature,
     persist,

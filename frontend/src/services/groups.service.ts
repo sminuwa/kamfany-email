@@ -10,7 +10,6 @@ interface GroupMailboxJson {
 interface GroupJson {
   id: string;
   name: string;
-  address: string;
   mailboxes: GroupMailboxJson[];
 }
 
@@ -23,7 +22,6 @@ export interface GroupMailbox {
 export interface MailGroup {
   id: string;
   name: string;
-  address: string;
   mailboxes: GroupMailbox[];
 }
 
@@ -31,7 +29,6 @@ function groupFrom(raw: GroupJson): MailGroup {
   return {
     id: raw.id,
     name: raw.name,
-    address: raw.address,
     mailboxes: raw.mailboxes.map((mailbox) => ({
       id: mailbox.id,
       address: mailbox.address,
@@ -47,12 +44,10 @@ export async function fetchGroups(): Promise<MailGroup[]> {
 
 export async function createGroup(input: {
   name: string;
-  address: string;
   mailboxIds: string[];
 }): Promise<MailGroup> {
   const response = await http.post<ApiData<GroupJson>>("/api/v1/groups", {
     name: input.name,
-    address: input.address,
     mailbox_ids: input.mailboxIds,
   });
   return groupFrom(response.data.data);

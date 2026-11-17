@@ -5,7 +5,7 @@
 
 The desk name, company, public URL, logo, and sending domain are install settings (`BRAND_NAME`, `BRAND_COMPANY`, `APP_PUBLIC_URL`, `BRAND_LOGO_URL`, `RESEND_SENDING_DOMAIN`). `GET /api/v1/brand` is public. A missing name falls back to `Mail`. Production requires an explicit sending domain. This is still one organization per deployment.
 
-The owner can create a group address and add mailboxes to it. Sending to that address expands it to the enabled member addresses for Resend, and a copy is stored in each member inbox. A group address cannot match an existing mailbox.
+The owner can create a named group and add mailboxes to it. A group has no email address. Sending to the group delivers the mail to each enabled mailbox in it.
 
 ## Delivered
 

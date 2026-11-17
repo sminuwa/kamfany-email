@@ -25,6 +25,8 @@ pub struct SendBody {
     html: Option<String>,
     #[serde(default)]
     draft_id: Option<Uuid>,
+    #[serde(default)]
+    group_ids: Vec<Uuid>,
 }
 
 #[derive(Serialize)]
@@ -94,6 +96,7 @@ pub async fn send_message(
             html: body.html,
             link: None,
             draft_id: body.draft_id,
+            group_ids: body.group_ids,
         },
     )
     .await?;

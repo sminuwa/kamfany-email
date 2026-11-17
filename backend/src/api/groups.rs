@@ -14,7 +14,6 @@ use crate::state::AppState;
 #[derive(Deserialize)]
 pub struct GroupBody {
     name: String,
-    address: String,
     mailbox_ids: Vec<Uuid>,
 }
 
@@ -43,7 +42,6 @@ pub async fn create_group(
         user.id,
         GroupInput {
             name: body.name,
-            local_part: body.address,
             mailbox_ids: body.mailbox_ids,
         },
     )
