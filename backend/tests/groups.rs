@@ -179,8 +179,7 @@ async fn the_owner_creates_a_group_and_mail_reaches_each_mailbox() {
         "/api/v1/groups",
         Some(&member_cookie),
         Some(json!({
-            "name": name,
-            "mailbox_ids": [first, second]
+            "name": name
         })),
     )
     .await;
@@ -192,8 +191,7 @@ async fn the_owner_creates_a_group_and_mail_reaches_each_mailbox() {
         "/api/v1/groups",
         Some(&owner_cookie),
         Some(json!({
-            "name": name,
-            "mailbox_ids": [first, second, owner_mailbox]
+            "name": name
         })),
     )
     .await;
@@ -205,9 +203,31 @@ async fn the_owner_creates_a_group_and_mail_reaches_each_mailbox() {
             .as_array()
             .expect("members")
             .len(),
-        3
+        0
     );
     let group_id = Uuid::parse_str(created["data"]["id"].as_str().expect("id")).expect("group id");
+
+    let (status, _, _) = call(
+        &app,
+        "POST",
+        &format!("/api/v1/groups/{group_id}/mailboxes"),
+        Some(&member_cookie),
+        Some(json!({ "mailbox_id": first })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+
+    for mailbox_id in [first, second, owner_mailbox] {
+        let (status, added, _) = call(
+            &app,
+            "POST",
+            &format!("/api/v1/groups/{group_id}/mailboxes"),
+            Some(&owner_cookie),
+            Some(json!({ "mailbox_id": mailbox_id })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CREATED, "{added}");
+    }
 
     let (status, listed, _) = call(&app, "GET", "/api/v1/groups", Some(&member_cookie), None).await;
     assert_eq!(status, StatusCode::OK);
@@ -218,6 +238,44 @@ async fn the_owner_creates_a_group_and_mail_reaches_each_mailbox() {
             .iter()
             .any(|group| group["name"] == name && group.get("address").is_none())
     );
+
+    let ada = format!("ada-{suffix}@kamfany.test");
+    let boundary = "kamfany-bound";
+    let csv = format!("email\n{ada}\nnobody-{suffix}@kamfany.test\n");
+    let body = format!(
+        "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"members.csv\"\r\nContent-Type: text/csv\r\n\r\n{csv}\r\n--{boundary}--\r\n"
+    );
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/groups/{group_id}/import"))
+                .header(header::ORIGIN, ORIGIN)
+                .header("x-kamfany-request", "1")
+                .header(header::COOKIE, format!("kamfany_session={owner_cookie}"))
+                .header(
+                    header::CONTENT_TYPE,
+                    format!("multipart/form-data; boundary={boundary}"),
+                )
+                .body(Body::from(body))
+                .expect("import"),
+        )
+        .await
+        .expect("import response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let imported: serde_json::Value = serde_json::from_slice(
+        &response
+            .into_body()
+            .collect()
+            .await
+            .expect("import body")
+            .to_bytes(),
+    )
+    .expect("import json");
+    assert_eq!(imported["data"]["added"], 0);
+    assert_eq!(imported["data"]["already_in_group"], 1);
+    assert_eq!(imported["data"]["unknown_count"], 1);
 
     let expanded = fanout(&pool, &[], &[], &[], std::slice::from_ref(&group_id))
         .await

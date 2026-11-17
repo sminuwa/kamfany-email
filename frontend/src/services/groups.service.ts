@@ -42,15 +42,54 @@ export async function fetchGroups(): Promise<MailGroup[]> {
   return response.data.data.map(groupFrom);
 }
 
-export async function createGroup(input: {
-  name: string;
-  mailboxIds: string[];
-}): Promise<MailGroup> {
-  const response = await http.post<ApiData<GroupJson>>("/api/v1/groups", {
-    name: input.name,
-    mailbox_ids: input.mailboxIds,
+export async function createGroup(name: string): Promise<MailGroup> {
+  const response = await http.post<ApiData<GroupJson>>("/api/v1/groups", { name });
+  return groupFrom(response.data.data);
+}
+
+export async function addGroupMailbox(id: string, mailboxId: string): Promise<MailGroup> {
+  const response = await http.post<ApiData<GroupJson>>(`/api/v1/groups/${id}/mailboxes`, {
+    mailbox_id: mailboxId,
   });
   return groupFrom(response.data.data);
+}
+
+export async function removeGroupMailbox(id: string, mailboxId: string): Promise<MailGroup> {
+  const response = await http.delete<ApiData<GroupJson>>(`/api/v1/groups/${id}/mailboxes/${mailboxId}`);
+  return groupFrom(response.data.data);
+}
+
+export interface GroupImport {
+  added: number;
+  alreadyInGroup: number;
+  unknownCount: number;
+  unknown: string[];
+  notAdded: number;
+  group: MailGroup;
+}
+
+export async function importGroupFile(id: string, file: File): Promise<GroupImport> {
+  const body = new FormData();
+  body.append("file", file);
+  const response = await http.post<
+    ApiData<{
+      added: number;
+      already_in_group: number;
+      unknown_count: number;
+      unknown: string[];
+      not_added: number;
+      group: GroupJson;
+    }>
+  >(`/api/v1/groups/${id}/import`, body, { timeout: 60_000 });
+  const raw = response.data.data;
+  return {
+    added: raw.added,
+    alreadyInGroup: raw.already_in_group,
+    unknownCount: raw.unknown_count,
+    unknown: raw.unknown,
+    notAdded: raw.not_added,
+    group: groupFrom(raw.group),
+  };
 }
 
 export async function updateGroup(

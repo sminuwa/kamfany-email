@@ -1,5 +1,5 @@
 use axum::Json;
-use axum::extract::{Path, State};
+use axum::extract::{Multipart, Path, State};
 use axum::http::StatusCode;
 use serde::Deserialize;
 use uuid::Uuid;
@@ -8,12 +8,13 @@ use crate::api::body::Body;
 use crate::api::errors::AppError;
 use crate::api::response::ApiData;
 use crate::auth::CurrentUser;
-use crate::groups::{self, GroupInput, GroupView};
+use crate::groups::{self, GroupImport, GroupInput, GroupView};
 use crate::state::AppState;
 
 #[derive(Deserialize)]
 pub struct GroupBody {
     name: String,
+    #[serde(default)]
     mailbox_ids: Vec<Uuid>,
 }
 
@@ -21,6 +22,11 @@ pub struct GroupBody {
 pub struct GroupPatch {
     name: Option<String>,
     mailbox_ids: Option<Vec<Uuid>>,
+}
+
+#[derive(Deserialize)]
+pub struct MemberBody {
+    mailbox_id: Uuid,
 }
 
 pub async fn list_groups(
@@ -57,6 +63,55 @@ pub async fn update_group(
 ) -> Result<Json<ApiData<GroupView>>, AppError> {
     let group = groups::update(&state, user.id, id, body.name, body.mailbox_ids).await?;
     Ok(Json(ApiData { data: group }))
+}
+
+pub async fn add_group_mailbox(
+    State(state): State<AppState>,
+    user: CurrentUser,
+    Path(id): Path<Uuid>,
+    Body(body): Body<MemberBody>,
+) -> Result<(StatusCode, Json<ApiData<GroupView>>), AppError> {
+    let group = groups::add_mailbox(&state, user.id, id, body.mailbox_id).await?;
+    Ok((StatusCode::CREATED, Json(ApiData { data: group })))
+}
+
+pub async fn remove_group_mailbox(
+    State(state): State<AppState>,
+    user: CurrentUser,
+    Path((id, mailbox_id)): Path<(Uuid, Uuid)>,
+) -> Result<Json<ApiData<GroupView>>, AppError> {
+    let group = groups::remove_mailbox(&state, user.id, id, mailbox_id).await?;
+    Ok(Json(ApiData { data: group }))
+}
+
+pub async fn import_group(
+    State(state): State<AppState>,
+    user: CurrentUser,
+    Path(id): Path<Uuid>,
+    mut multipart: Multipart,
+) -> Result<Json<ApiData<GroupImport>>, AppError> {
+    let mut file = None;
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|_| AppError::Validation("The upload could not be read.".into()))?
+    {
+        if field.name() != Some("file") {
+            continue;
+        }
+        let filename = field.file_name().unwrap_or("members.csv").to_string();
+        let bytes = field
+            .bytes()
+            .await
+            .map_err(|_| AppError::Validation("The upload could not be read.".into()))?;
+        file = Some((filename, bytes));
+        break;
+    }
+    let (filename, bytes) =
+        file.ok_or_else(|| AppError::Validation("Choose a CSV or Excel file.".into()))?;
+    Ok(Json(ApiData {
+        data: groups::import_mailboxes(&state, user.id, id, &filename, &bytes).await?,
+    }))
 }
 
 pub async fn delete_group(
