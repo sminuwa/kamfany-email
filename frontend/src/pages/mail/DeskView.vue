@@ -69,7 +69,7 @@ watch(
       </div>
       <div v-else class="desk-chrome grid h-full min-h-0 flex-1 place-items-center px-8 text-center">
         <div class="max-w-[36ch]">
-          <BrandMark class="mx-auto size-14" />
+          <BrandMark layout="lockup" class="mx-auto h-16" />
           <p class="mt-5 text-lg font-semibold tracking-[-0.03em]">No message open</p>
           <p class="mt-2 text-sm leading-relaxed text-muted">
             Choose a message from the list to read it here.

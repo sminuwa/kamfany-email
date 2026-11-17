@@ -8,6 +8,10 @@ export const useBrandStore = defineStore("brand", () => {
   const domain = ref("");
   const publicUrl = ref("");
   const logoUrl = ref("");
+  const logoWide = ref(false);
+  const logoMeasured = ref(false);
+
+  const showName = computed(() => !logoUrl.value || (logoMeasured.value && !logoWide.value));
 
   const byline = computed(() =>
     company.value ? `${name.value} for ${company.value}.` : name.value,
@@ -26,7 +30,14 @@ export const useBrandStore = defineStore("brand", () => {
       ?.setAttribute("content", byline.value);
   }
 
+  function noteLogo(wide: boolean) {
+    logoWide.value = wide;
+    logoMeasured.value = true;
+  }
+
   async function load() {
+    logoWide.value = false;
+    logoMeasured.value = false;
     try {
       const profile = await fetchBrand();
       if (profile.name.trim()) {
@@ -48,6 +59,8 @@ export const useBrandStore = defineStore("brand", () => {
     domain,
     publicUrl,
     logoUrl,
+    showName,
+    noteLogo,
     byline,
     addressHint,
     personHint,

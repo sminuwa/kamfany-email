@@ -112,9 +112,12 @@ const icons: Record<string, Component> = {
   >
     <div class="px-3 pb-2 pt-4">
       <div class="flex items-center gap-3 px-1" :class="railCollapsed ? 'justify-center' : ''">
-        <BrandMark class="size-9 shrink-0" />
+        <BrandMark
+          :layout="!railCollapsed && brand.logoUrl ? 'lockup' : 'mark'"
+          :class="!railCollapsed && brand.logoUrl ? 'h-8' : 'size-9 shrink-0'"
+        />
         <p
-          v-show="!railCollapsed"
+          v-show="!railCollapsed && brand.showName"
           class="truncate text-[15px] font-semibold tracking-[-0.02em]"
         >
           {{ brand.name }}
