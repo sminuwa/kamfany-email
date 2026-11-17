@@ -5,8 +5,10 @@ import { useBrandStore } from "../../stores/brand";
 withDefaults(
   defineProps<{
     layout?: "mark" | "lockup";
+    /** The rail is dark in both themes. Other surfaces follow the theme. */
+    onDark?: boolean;
   }>(),
-  { layout: "mark" },
+  { layout: "mark", onDark: false },
 );
 
 const brand = useBrandStore();
@@ -31,7 +33,10 @@ function onError() {
       :src="brand.logoUrl"
       :alt="brand.name"
       class="brand-logo block h-full"
-      :class="layout === 'lockup' ? 'w-auto max-w-full object-contain' : 'w-full object-cover object-left'"
+      :class="[
+        onDark ? 'on-dark' : '',
+        layout === 'lockup' ? 'w-auto max-w-full object-contain' : 'w-full object-cover object-left',
+      ]"
       @load="onLoad"
       @error="onError"
     />
@@ -56,8 +61,9 @@ function onError() {
   </span>
 </template>
 
-<style scoped>
-:global([data-theme="dark"]) .brand-logo {
+<style>
+[data-theme="dark"] .brand-logo,
+.brand-logo.on-dark {
   filter: invert(1) hue-rotate(180deg);
 }
 </style>
