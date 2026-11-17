@@ -78,7 +78,8 @@ pub async fn send_mail(
     if to.is_empty() {
         return Err(AppError::Validation("Add at least one recipient.".into()));
     }
-    if to.len() + cc.len() + bcc.len() > MAX_RECIPIENTS {
+    let fanout = crate::groups::fanout(pool, &to, &cc, &bcc).await?;
+    if fanout.to.len() + fanout.cc.len() + fanout.bcc.len() > MAX_RECIPIENTS {
         return Err(AppError::Validation(
             "A message can have at most 50 recipients.".into(),
         ));
@@ -115,7 +116,7 @@ pub async fn send_mail(
         None => Vec::new(),
     };
 
-    let message_id = insert_outgoing(
+    let outgoing = insert_outgoing(
         pool,
         &mailbox,
         &OutgoingDraft {
@@ -129,6 +130,7 @@ pub async fn send_mail(
         },
     )
     .await?;
+    let message_id = outgoing.id;
     let mut headers = Vec::new();
     if let Some(link) = &request.link {
         if let Some(value) = link.in_reply_to.as_deref() {
@@ -142,12 +144,12 @@ pub async fn send_mail(
         .send_email(&OutboundEmail {
             from_name: mailbox.display_name.clone(),
             from_address: mailbox.address.clone(),
-            to,
-            cc,
-            bcc,
+            to: fanout.to,
+            cc: fanout.cc,
+            bcc: fanout.bcc,
             subject: subject.to_string(),
-            text,
-            html,
+            text: text.clone(),
+            html: html.clone(),
             idempotency_key: message_id.to_string(),
             headers,
             attachments: files
@@ -177,6 +179,32 @@ pub async fn send_mail(
             if let Some(draft_id) = request.draft_id {
                 super::files::finish_draft(pool, draft_id, message_id).await?;
             }
+            let copies = files
+                .iter()
+                .map(|file| GroupFile {
+                    filename: file.filename.clone(),
+                    content_type: file.content_type.clone(),
+                    bytes: file.bytes.clone(),
+                    scan_status: file.scan_status.clone(),
+                })
+                .collect::<Vec<_>>();
+            deliver_group_mail(
+                state,
+                &GroupDelivery {
+                    from_address: &mailbox.address,
+                    from_name: &mailbox.display_name,
+                    subject,
+                    text: text.as_deref(),
+                    html: html.as_deref(),
+                    to: &to,
+                    cc: &cc,
+                    message_id_header: &outgoing.message_id_header,
+                    provider_message_id: &receipt.provider_message_id,
+                    mailbox_ids: &fanout.mailboxes,
+                    files: &copies,
+                },
+            )
+            .await?;
             write_audit(
                 pool,
                 Some(actor),
@@ -273,11 +301,16 @@ struct OutgoingDraft<'a> {
     link: Option<&'a SendLink>,
 }
 
+struct OutgoingRecord {
+    id: Uuid,
+    message_id_header: String,
+}
+
 async fn insert_outgoing(
     pool: &PgPool,
     mailbox: &MailboxSend,
     draft: &OutgoingDraft<'_>,
-) -> Result<Uuid, AppError> {
+) -> Result<OutgoingRecord, AppError> {
     let mut tx = pool.begin().await?;
     crate::records::ensure_system_folders(&mut tx, mailbox.id).await?;
     let id = Uuid::new_v4();
@@ -343,5 +376,157 @@ async fn insert_outgoing(
     )
     .await?;
     tx.commit().await?;
-    Ok(id)
+    Ok(OutgoingRecord {
+        id,
+        message_id_header: message_header,
+    })
+}
+
+pub struct GroupFile {
+    pub filename: String,
+    pub content_type: String,
+    pub bytes: Vec<u8>,
+    pub scan_status: String,
+}
+
+pub struct GroupDelivery<'a> {
+    pub from_address: &'a str,
+    pub from_name: &'a str,
+    pub subject: &'a str,
+    pub text: Option<&'a str>,
+    pub html: Option<&'a str>,
+    pub to: &'a [String],
+    pub cc: &'a [String],
+    pub message_id_header: &'a str,
+    pub provider_message_id: &'a str,
+    pub mailbox_ids: &'a [Uuid],
+    pub files: &'a [GroupFile],
+}
+
+pub async fn deliver_group_mail(
+    state: &crate::state::AppState,
+    delivery: &GroupDelivery<'_>,
+) -> Result<(), AppError> {
+    if delivery.mailbox_ids.is_empty() {
+        return Ok(());
+    }
+    let pool = pool_of(state)?;
+    for mailbox_id in delivery.mailbox_ids {
+        let arrival = insert_group_copy(pool, &state.storage, *mailbox_id, delivery).await?;
+        if let Some(arrival) = arrival {
+            crate::live::announce(state, &arrival).await?;
+        }
+    }
+    Ok(())
+}
+
+async fn insert_group_copy(
+    pool: &PgPool,
+    storage: &crate::storage::BlobStore,
+    mailbox_id: Uuid,
+    delivery: &GroupDelivery<'_>,
+) -> Result<Option<crate::live::Arrival>, AppError> {
+    let mut tx = pool.begin().await?;
+    crate::records::ensure_system_folders(&mut tx, mailbox_id).await?;
+    let message_id = sqlx::query_scalar::<_, Uuid>(
+        r#"
+        INSERT INTO messages (
+            mailbox_id, provider, provider_message_id, direction, status,
+            from_address, from_name, subject, preview, body_text, body_html,
+            received_at, is_read, has_attachments, message_id_header
+        )
+        VALUES (
+            $1, 'resend', $2, 'inbound', 'received',
+            $3, $4, $5, $6, $7, $8,
+            now(), false, $9, $10
+        )
+        ON CONFLICT (mailbox_id, provider, provider_message_id)
+            WHERE provider_message_id IS NOT NULL
+        DO NOTHING
+        RETURNING id
+        "#,
+    )
+    .bind(mailbox_id)
+    .bind(delivery.provider_message_id)
+    .bind(delivery.from_address)
+    .bind(delivery.from_name)
+    .bind(delivery.subject)
+    .bind(delivery.text.and_then(preview))
+    .bind(delivery.text)
+    .bind(delivery.html)
+    .bind(!delivery.files.is_empty())
+    .bind(delivery.message_id_header)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some(message_id) = message_id else {
+        tx.commit().await?;
+        return Ok(None);
+    };
+    for (kind, addresses) in [("to", delivery.to), ("cc", delivery.cc)] {
+        for address in addresses {
+            sqlx::query("INSERT INTO recipients (message_id, kind, address) VALUES ($1, $2, $3)")
+                .bind(message_id)
+                .bind(kind)
+                .bind(address)
+                .execute(&mut *tx)
+                .await?;
+        }
+    }
+    crate::records::assign_system_folder(&mut tx, mailbox_id, message_id, "inbox").await?;
+    crate::records::attach_thread(
+        &mut tx,
+        mailbox_id,
+        message_id,
+        delivery.subject,
+        None,
+        None,
+        None,
+    )
+    .await?;
+    let mut stored_keys = Vec::new();
+    for file in delivery.files {
+        let id = Uuid::new_v4();
+        let key = format!("attachments/{id}");
+        storage.put(&key, &file.bytes).await?;
+        stored_keys.push(key.clone());
+        let scan_status = if matches!(
+            file.scan_status.as_str(),
+            "pending" | "clean" | "rejected" | "failed"
+        ) {
+            file.scan_status.as_str()
+        } else {
+            "pending"
+        };
+        if let Err(error) = sqlx::query(
+            r#"
+            INSERT INTO attachments (
+                id, message_id, filename, content_type, size_bytes, storage_key, scan_status
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            "#,
+        )
+        .bind(id)
+        .bind(message_id)
+        .bind(&file.filename)
+        .bind(&file.content_type)
+        .bind(file.bytes.len() as i64)
+        .bind(&key)
+        .bind(scan_status)
+        .execute(&mut *tx)
+        .await
+        {
+            for key in stored_keys {
+                storage.delete(&key).await;
+            }
+            return Err(error.into());
+        }
+    }
+    tx.commit().await?;
+    Ok(Some(crate::live::Arrival {
+        mailbox_id,
+        message_id,
+        from_name: Some(delivery.from_name.to_string()),
+        from_address: delivery.from_address.to_string(),
+        subject: delivery.subject.to_string(),
+    }))
 }

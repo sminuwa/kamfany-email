@@ -60,7 +60,7 @@ PostgreSQL, UUID primary keys, SQLx migrations. The binary command `migrate` app
 | Area | Tables |
 | --- | --- |
 | Identity | users, roles, permissions, user_roles, role_permissions, sessions, user_preferences, audit_logs |
-| Mailboxes | mailboxes, mailbox_users, mailbox_settings |
+| Mailboxes | mailboxes, mailbox_users, mailbox_settings, mailbox_groups, mailbox_group_members |
 | Mail | folders, labels, threads, messages, recipients, message_labels, message_folder_assignments, attachments |
 | Other | contacts, drafts, email_signatures, notifications, webhook_events |
 

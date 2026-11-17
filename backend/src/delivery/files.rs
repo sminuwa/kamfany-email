@@ -12,6 +12,7 @@ pub struct StoredFile {
     pub filename: String,
     pub content_type: String,
     pub bytes: Vec<u8>,
+    pub scan_status: String,
 }
 
 pub async fn read_draft_files(
@@ -23,7 +24,7 @@ pub async fn read_draft_files(
 ) -> Result<Vec<StoredFile>, AppError> {
     let rows = sqlx::query_as::<_, FileRow>(
         r#"
-        SELECT a.filename, a.content_type, a.size_bytes, a.storage_key
+        SELECT a.filename, a.content_type, a.size_bytes, a.storage_key, a.scan_status
         FROM attachments a
         JOIN drafts d ON d.id = a.draft_id
         WHERE d.id = $1 AND d.author_user_id = $2 AND d.mailbox_id = $3
@@ -53,6 +54,7 @@ pub async fn read_draft_files(
             filename: row.filename,
             content_type: row.content_type,
             bytes,
+            scan_status: row.scan_status,
         });
     }
     Ok(files)
@@ -211,4 +213,5 @@ struct FileRow {
     content_type: String,
     size_bytes: i64,
     storage_key: String,
+    scan_status: String,
 }

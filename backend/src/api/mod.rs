@@ -6,6 +6,7 @@ mod browser;
 mod compose;
 mod contacts;
 mod errors;
+mod groups;
 mod health;
 mod live;
 mod mailboxes;

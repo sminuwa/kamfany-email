@@ -23,6 +23,7 @@ use crate::api::contacts::{
     save_contact,
 };
 use crate::api::errors::AppError;
+use crate::api::groups::{create_group, delete_group, list_groups, update_group};
 use crate::api::health::{health, ready};
 use crate::api::live::{notices, read_notice, read_notices, socket};
 use crate::api::mailboxes::{
@@ -98,6 +99,11 @@ fn browser_router() -> Router<AppState> {
             delete(revoke_member),
         )
         .route("/api/v1/mailboxes/{id}/default", post(make_default))
+        .route("/api/v1/groups", get(list_groups).post(create_group))
+        .route(
+            "/api/v1/groups/{id}",
+            patch(update_group).delete(delete_group),
+        )
         .route("/api/v1/mailboxes/{id}/send", post(send_message))
         .route("/api/v1/mailboxes/{id}/drafts", post(add_draft))
         .route("/api/v1/mailboxes/{id}/signatures", get(mailbox_signatures))

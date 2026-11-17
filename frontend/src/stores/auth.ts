@@ -27,6 +27,7 @@ export const useAuthStore = defineStore("auth", () => {
   const canManageMailboxes = computed(() => user.value?.permissions.includes("mailbox.manage") ?? false);
   const canManageUsers = computed(() => user.value?.permissions.includes("users.manage") ?? false);
   const canReadAudit = computed(() => user.value?.permissions.includes("audit.read") ?? false);
+  const isOwner = computed(() => user.value?.roles.includes("owner") ?? false);
 
   async function ensure() {
     if (checked.value) {
@@ -108,6 +109,7 @@ export const useAuthStore = defineStore("auth", () => {
     canManageMailboxes,
     canManageUsers,
     canReadAudit,
+    isOwner,
     ensure,
     login,
     logout,

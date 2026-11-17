@@ -12,7 +12,9 @@ pub(crate) use files::{purge_message_files, store_received_files};
 
 pub use ingest::store_inbound;
 pub use jobs::{accept_webhook, process_due, run_jobs};
-pub use send::{SendLink, SendRequest, SentMessage, send_mail};
+pub use send::{
+    GroupDelivery, GroupFile, SendLink, SendRequest, SentMessage, deliver_group_mail, send_mail,
+};
 pub use sync::{ProviderReport, provider_report, sync_provider};
 
 use crate::api::AppError;

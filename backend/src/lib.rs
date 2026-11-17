@@ -11,6 +11,7 @@ pub mod config;
 pub mod contacts;
 pub mod database;
 pub mod delivery;
+pub mod groups;
 pub mod limit;
 pub mod live;
 pub mod messages;

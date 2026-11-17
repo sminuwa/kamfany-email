@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import AuthLayout from "../layouts/AuthLayout.vue";
 import MailLayout from "../layouts/MailLayout.vue";
 import AccessView from "../pages/auth/AccessView.vue";
+import GroupsView from "../pages/auth/GroupsView.vue";
 import AuditView from "../pages/auth/AuditView.vue";
 import PasswordView from "../pages/auth/PasswordView.vue";
 import PeopleView from "../pages/auth/PeopleView.vue";
@@ -79,6 +80,12 @@ export const router = createRouter({
           meta: { title: "Email provider", permission: "mailbox.manage" },
         },
         {
+          path: "account/groups",
+          name: "account-groups",
+          component: GroupsView,
+          meta: { title: "Groups", role: "owner" },
+        },
+        {
           path: "account/audit",
           name: "account-audit",
           component: AuditView,
@@ -120,6 +127,10 @@ router.beforeEach(async (to) => {
   }
   const permission = typeof to.meta.permission === "string" ? to.meta.permission : "";
   if (permission && !auth.user?.permissions.includes(permission)) {
+    return { path: "/account" };
+  }
+  const role = typeof to.meta.role === "string" ? to.meta.role : "";
+  if (role && !auth.user?.roles.includes(role)) {
     return { path: "/account" };
   }
   await useMailboxStore().ensure();

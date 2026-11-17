@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Lock, Mail, Monitor, ScrollText, Server, User } from "@lucide/vue";
+import { Lock, Mail, Monitor, ScrollText, Server, User, Users } from "@lucide/vue";
 import { computed } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import type { Component } from "vue";
@@ -22,6 +22,9 @@ const links = computed(() => {
   }
   if (auth.canManageUsers) {
     items.push({ to: "/account/mailboxes", name: "account-mailboxes", label: "Mailboxes", icon: Mail });
+  }
+  if (auth.isOwner) {
+    items.push({ to: "/account/groups", name: "account-groups", label: "Groups", icon: Users });
   }
   return items;
 });

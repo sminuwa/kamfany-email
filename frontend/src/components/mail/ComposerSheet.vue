@@ -83,7 +83,8 @@ function onFiles(event: Event) {
           @click="composer.chooseSuggestion(person.address)"
         >
           {{ person.name || person.address }}
-          <span v-if="person.name" class="text-muted">{{ person.address }}</span>
+          <span v-if="person.kind === 'group'" class="text-muted">Group</span>
+          <span v-else-if="person.name" class="text-muted">{{ person.address }}</span>
         </button>
       </div>
       <label v-if="composer.showCc" class="relative mt-3 block text-sm font-medium">
@@ -106,6 +107,7 @@ function onFiles(event: Event) {
           @click="composer.chooseSuggestion(person.address)"
         >
           {{ person.name || person.address }}
+          <span v-if="person.kind === 'group'" class="text-muted">Group</span>
         </button>
       </div>
       <label v-if="composer.showBcc" class="mt-3 block text-sm font-medium">
